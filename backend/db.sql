@@ -1,6 +1,4 @@
--- Database Creation (PostgreSQL)
--- If using Supabase, you connect to the 'postgres' DB automatically.
--- Connect to the database before running the script if doing manually.
+-- Pure PostgreSQL Database Schema
 
 -- Table: users (Stores Admins, Teachers, Students)
 CREATE TABLE IF NOT EXISTS users (

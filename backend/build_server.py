@@ -1,4 +1,5 @@
-import express from 'express';
+def build_server_js():
+    code = """import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import pg from 'pg';
@@ -972,3 +973,9 @@ app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Pure PostgreSQL backend loaded successfully!`);
 });
+"""
+    with open('/Users/apple/Desktop/smart-college-attendance copy/backend/server.js', 'w') as f:
+        f.write(code)
+    print("server.js completely rewritten correctly without wrapper!")
+
+build_server_js()
