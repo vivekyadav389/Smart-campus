@@ -1,7 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import mysql from 'mysql2/promise';
+import pg from 'pg';
+const { Pool } = pg;
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -41,20 +42,35 @@ app.get('/api/version', (req, res) => res.json({ version: '1.0.2-notice-fix' }))
 app.get('/api/ping', (req, res) => res.json({ success: true, message: 'pong' }));
 
 // This initializes on start and holds connections to MySQL
-const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'smart_college',
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
+const pgPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
 });
+
+const pool = {
+    query: async (sql, params = []) => {
+        let i = 1;
+        let pgSql = sql.replace(/\?/g, () => `$${i++}`);
+        try {
+            const result = await pgPool.query(pgSql, params);
+            const rows = result.rows || [];
+            if (result.rows && result.rows.length > 0 && result.rows[0].id) {
+                rows.insertId = result.rows[0].id;
+            }
+            return [rows, result.fields];
+        } catch (err) {
+            if (err.code === '42701') err.errno = 1060;
+            if (err.code === '42P07') err.errno = 1050;
+            console.error('[PG Query Error]', err.message, 'SQL:', pgSql);
+            throw err;
+        }
+    }
+};
 
 // Run migrations on start
 (async () => {
     try {
-        await pool.query('ALTER TABLE attendance_logs ADD COLUMN sessions JSON;');
+        await pool.query('ALTER TABLE attendance_logs ADD COLUMN sessions JSONB;');
         console.log("DB Migration: sessions column added successfully.");
     } catch (err) {
         if (err.errno === 1060) {
@@ -78,7 +94,7 @@ const pool = mysql.createPool({
     }
 
     try {
-        await pool.query('ALTER TABLE users ADD COLUMN profilePic LONGTEXT;');
+        await pool.query('ALTER TABLE users ADD COLUMN profilePic TEXT;');
         console.log("DB Migration: profilePic column added successfully.");
     } catch (err) {
         if (err.errno === 1060) {
@@ -91,11 +107,11 @@ const pool = mysql.createPool({
     try {
         await pool.query(`
             CREATE TABLE IF NOT EXISTS calendar_events (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 date DATE NOT NULL UNIQUE,
-                type ENUM('Class', 'Holiday') NOT NULL,
+                type VARCHAR(255) NOT NULL,
                 reason VARCHAR(255),
-                status ENUM('Pending', 'Verified') DEFAULT 'Pending',
+                status VARCHAR(255) DEFAULT 'Pending',
                 teacherId VARCHAR(50),
                 FOREIGN KEY (teacherId) REFERENCES users(id) ON DELETE SET NULL
             )
@@ -109,17 +125,17 @@ const pool = mysql.createPool({
     try {
         await pool.query(`
             CREATE TABLE IF NOT EXISTS notices (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 title VARCHAR(255) NOT NULL,
                 description TEXT,
-                type ENUM('Text', 'Image', 'PDF') DEFAULT 'Text',
+                type VARCHAR(255) DEFAULT 'Text',
                 file_path VARCHAR(255),
-                audience ENUM('Students', 'Teachers', 'Both') DEFAULT 'Both',
+                audience VARCHAR(255) DEFAULT 'Both',
                 branch VARCHAR(50) DEFAULT 'All',
                 batch VARCHAR(50) DEFAULT 'All',
                 start_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 end_date TIMESTAMP NULL,
-                priority ENUM('Normal', 'Urgent') DEFAULT 'Normal',
+                priority VARCHAR(255) DEFAULT 'Normal',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
@@ -132,7 +148,7 @@ const pool = mysql.createPool({
     try {
         await pool.query(`
             CREATE TABLE IF NOT EXISTS notice_analytics (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 notice_id INT,
                 user_id VARCHAR(50),
                 viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -150,18 +166,18 @@ const pool = mysql.createPool({
         await pool.query(`
             CREATE TABLE IF NOT EXISTS system_settings (
                 setting_key VARCHAR(50) PRIMARY KEY,
-                setting_value LONGTEXT NOT NULL
+                setting_value TEXT NOT NULL
             )
         `);
         // Ensure defaults exist
-        await pool.query(`INSERT IGNORE INTO system_settings (setting_key, setting_value) VALUES
+        await pool.query(`INSERT INTO system_settings (setting_key, setting_value) VALUES
             ('collegeTiming', '{"startTime":"08:00","endTime":"16:00"}'),
             ('geofence', '{"center":[19.1334,72.9133],"radius":300}')
-        `);
+            ON CONFLICT DO NOTHING `);
         // Try to ALTER in case table existed with TEXT limit
         try {
-            await pool.query(`ALTER TABLE system_settings MODIFY COLUMN setting_value LONGTEXT NOT NULL`);
-            console.log('DB Migration: system_settings.setting_value upgraded to LONGTEXT.');
+            await pool.query(`ALTER TABLE system_settings MODIFY COLUMN setting_value TEXT NOT NULL`);
+            console.log('DB Migration: system_settings.setting_value upgraded to TEXT.');
         } catch (_) { }
         console.log('DB Migration: system_settings table OK.');
     } catch (err) {
@@ -171,14 +187,14 @@ const pool = mysql.createPool({
     try {
         await pool.query(`
             CREATE TABLE IF NOT EXISTS geofence_events (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 studentId VARCHAR(50) NOT NULL,
                 date DATE NOT NULL,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                eventType ENUM('ENTRY', 'EXIT') NOT NULL,
-                latitude DOUBLE,
-                longitude DOUBLE,
-                accuracy FLOAT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                eventType VARCHAR(255) NOT NULL,
+                latitude DOUBLE PRECISION,
+                longitude DOUBLE PRECISION,
+                accuracy REAL,
                 FOREIGN KEY (studentId) REFERENCES users(id) ON DELETE CASCADE
             )
         `);
@@ -191,7 +207,7 @@ const pool = mysql.createPool({
     try {
         await pool.query('ALTER TABLE attendance_logs ADD COLUMN entryCount INT DEFAULT 0;');
         await pool.query('ALTER TABLE attendance_logs ADD COLUMN totalDurationMinutes INT DEFAULT 0;');
-        await pool.query(`ALTER TABLE attendance_logs ADD COLUMN validationStatus ENUM('Valid', 'Late Entry', 'Early Exit', 'Insufficient Time', 'Pending Review', 'Unmarked Presence') DEFAULT 'Valid';`);
+        await pool.query(`ALTER TABLE attendance_logs ADD COLUMN validationStatus VARCHAR(255) DEFAULT 'Valid';`);
         await pool.query('ALTER TABLE attendance_logs ADD COLUMN validationReason TEXT;');
         console.log("DB Migration: attendance_logs extended successfully.");
     } catch (err) {
@@ -204,11 +220,11 @@ const pool = mysql.createPool({
     try {
         await pool.query(`
             CREATE TABLE IF NOT EXISTS audit_logs (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 action_type VARCHAR(50) NOT NULL,
                 details TEXT,
                 performed_by VARCHAR(50),
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (performed_by) REFERENCES users(id) ON DELETE SET NULL
             )
         `);
@@ -220,7 +236,7 @@ const pool = mysql.createPool({
 
 // Debug echo endpoint - helps test body parsing
 app.post('/api/debug-echo', (req, res) => {
-    console.log('[DEBUG ECHO] body:', JSON.stringify(req.body).substring(0, 500));
+    console.log('[DEBUG ECHO] body:', JSONB.stringify(req.body).substring(0, 500));
     res.json({ received: req.body, bodyKeys: Object.keys(req.body), contentType: req.headers['content-type'] });
 });
 
@@ -253,7 +269,7 @@ app.post('/api/auth/login', async (req, res) => {
         if (user.role === 'student') {
             // NEW CHECK: Prevent proxy attendance but allow request to swap device
             const [existingBinding] = await pool.query(
-                'SELECT email, name FROM users WHERE registeredDeviceId = ? AND id != ? AND role = "student"',
+                'SELECT email, name FROM users WHERE registeredDeviceId = ? AND id != ? AND role = 'student'',
                 [deviceId, user.id]
             );
 
@@ -276,7 +292,7 @@ app.post('/api/auth/login', async (req, res) => {
                 user.registeredDeviceId = deviceId;
             } else if (user.registeredDeviceId !== deviceId || isDeviceTakenByOther) {
                 // Device mismatch OR existing device taken by someone else - create a request
-                const [existing] = await pool.query('SELECT id FROM device_requests WHERE studentId = ? AND status = "pending"', [user.id]);
+                const [existing] = await pool.query('SELECT id FROM device_requests WHERE studentId = ? AND status = 'pending'', [user.id]);
 
                 if (existing.length === 0) {
                     const reqId = `req-${Date.now()}`;
@@ -343,7 +359,7 @@ app.post('/api/device-requests/approve', async (req, res) => {
         await pool.query('UPDATE users SET registeredDeviceId = ? WHERE id = ?', [request.newDeviceId, request.studentId]);
 
         // Mark request as approved
-        await pool.query('UPDATE device_requests SET status = "approved" WHERE id = ?', [requestId]);
+        await pool.query('UPDATE device_requests SET status = 'approved' WHERE id = ?', [requestId]);
 
         res.json({ success: true });
     } catch (error) {
@@ -355,7 +371,7 @@ app.post('/api/device-requests/approve', async (req, res) => {
 app.post('/api/device-requests/reject', async (req, res) => {
     const { requestId } = req.body;
     try {
-        await pool.query('UPDATE device_requests SET status = "rejected" WHERE id = ?', [requestId]);
+        await pool.query('UPDATE device_requests SET status = 'rejected' WHERE id = ?', [requestId]);
         res.json({ success: true });
     } catch (error) {
         console.error("Reject Request Error:", error);
@@ -387,8 +403,8 @@ app.get('/api/settings', async (req, res) => {
         const [rows] = await pool.query('SELECT * FROM system_settings');
         const settings = {};
         rows.forEach(row => {
-            // Parse JSON since we store them as strings in the DB
-            try { settings[row.setting_key] = JSON.parse(row.setting_value); }
+            // Parse JSONB since we store them as strings in the DB
+            try { settings[row.setting_key] = JSONB.parse(row.setting_value); }
             catch (e) { settings[row.setting_key] = row.setting_value; }
         });
 
@@ -407,12 +423,12 @@ app.post('/api/settings/timings', async (req, res) => {
     const { startTime, endTime, adminId } = req.body;
     try {
         // 1. Get current settings for auditing
-        const [[oldSettingsRow]] = await pool.query('SELECT setting_value FROM system_settings WHERE setting_key = "collegeTiming"');
-        const oldSettings = oldSettingsRow ? JSON.parse(oldSettingsRow.setting_value) : { startTime: '08:00', endTime: '16:00' };
+        const [[oldSettingsRow]] = await pool.query('SELECT setting_value FROM system_settings WHERE setting_key = 'collegeTiming'');
+        const oldSettings = oldSettingsRow ? JSONB.parse(oldSettingsRow.setting_value) : { startTime: '08:00', endTime: '16:00' };
 
         // 2. Update settings
-        const valStr = JSON.stringify({ startTime, endTime });
-        await pool.query('INSERT INTO system_settings (setting_key, setting_value) VALUES ("collegeTiming", ?) ON DUPLICATE KEY UPDATE setting_value = ?', [valStr, valStr]);
+        const valStr = JSONB.stringify({ startTime, endTime });
+        await pool.query('INSERT INTO system_settings (setting_key, setting_value) VALUES ('collegeTiming', ?) ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value', [valStr, valStr]);
 
         // 3. Log the change
         await pool.query('INSERT INTO audit_logs (action_type, details, performed_by) VALUES (?, ?, ?)', [
@@ -425,12 +441,12 @@ app.post('/api/settings/timings', async (req, res) => {
         const today = new Date().toISOString().split('T')[0];
 
         // Fetch all students
-        const [students] = await pool.query('SELECT id FROM users WHERE role = "student"');
+        const [students] = await pool.query('SELECT id FROM users WHERE role = 'student'');
 
         for (const student of students) {
             // Get all geofence events for today
             const [events] = await pool.query(
-                'SELECT timestamp FROM geofence_events WHERE studentId = ? AND date = ? AND eventType = "ENTRY" ORDER BY timestamp ASC',
+                'SELECT timestamp FROM geofence_events WHERE studentId = ? AND date = ? AND eventType = 'ENTRY' ORDER BY timestamp ASC',
                 [student.id, today]
             );
 
@@ -451,7 +467,7 @@ app.post('/api/settings/timings', async (req, res) => {
             // Update or Insert attendance log
             if (isPresent) {
                 await pool.query(
-                    'INSERT INTO attendance_logs (studentId, date, timeIn, status) VALUES (?, ?, ?, "Present") ON DUPLICATE KEY UPDATE status = "Present", timeIn = COALESCE(timeIn, ?)',
+                    'INSERT INTO attendance_logs (studentId, date, timeIn, status) VALUES (?, ?, ?, "Present") ON CONFLICT (studentId, date) DO UPDATE SET status = 'Present', timeIn = COALESCE(attendance_logs.timeIn, EXCLUDED.timeIn)',
                     [student.id, today, firstEntry, firstEntry]
                 );
             } else {
@@ -473,12 +489,12 @@ app.post('/api/settings/timings', async (req, res) => {
 
 app.post('/api/settings/geofence', async (req, res) => {
     try {
-        console.log('[Geofence POST] req.body received:', JSON.stringify(req.body));
+        console.log('[Geofence POST] req.body received:', JSONB.stringify(req.body));
         // Store the full body — supports both old {center,radius} and new {polygon:[...]} format
-        const valStr = JSON.stringify(req.body);
+        const valStr = JSONB.stringify(req.body);
         console.log('[Geofence POST] storing:', valStr.substring(0, 200));
         await pool.query(
-            'INSERT INTO system_settings (setting_key, setting_value) VALUES ("geofence", ?) ON DUPLICATE KEY UPDATE setting_value = ?',
+            'INSERT INTO system_settings (setting_key, setting_value) VALUES ('geofence', ?) ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value',
             [valStr, valStr]
         );
         res.json({ success: true });
@@ -505,7 +521,7 @@ app.post('/api/geofence/event', async (req, res) => {
             await pool.query(
                 `INSERT INTO attendance_logs (studentId, date, entryCount) 
                  VALUES (?, ?, 1) 
-                 ON DUPLICATE KEY UPDATE entryCount = entryCount + 1`,
+                 ON CONFLICT (studentId, date) DO UPDATE SET entryCount = attendance_logs.entryCount + 1`,
                 [studentId, today]
             );
         }
@@ -635,14 +651,14 @@ app.post('/api/attendance/mark', async (req, res) => {
         // Atomic Upsert to avoid race conditions (ER_DUP_ENTRY)
         const insertQuery = `
             INSERT INTO attendance_logs (studentId, date, status, timeIn, timeOut, sessions)
-            VALUES (?, ?, ?, ?, ?, COALESCE(?, JSON_ARRAY()))
-            ON DUPLICATE KEY UPDATE
-                status = VALUES(status),
-                timeIn = COALESCE(attendance_logs.timeIn, VALUES(timeIn)),
-                timeOut = VALUES(timeOut),
-                sessions = VALUES(sessions)
+            VALUES (?, ?, ?, ?, ?, COALESCE(?, JSONB_ARRAY()))
+            ON CONFLICT (studentId, date) DO UPDATE SET
+                status = EXCLUDED.status,
+                timeIn = COALESCE(attendance_logs.timeIn, EXCLUDED.timeIn),
+                timeOut = EXCLUDED.timeOut,
+                sessions = EXCLUDED.sessions
         `;
-        const sessionsJson = sessions ? JSON.stringify(sessions) : null;
+        const sessionsJson = sessions ? JSONB.stringify(sessions) : null;
 
         await pool.query(
             insertQuery,
@@ -669,10 +685,10 @@ app.post('/api/attendance/manual-mark', async (req, res) => {
         const insertQuery = `
             INSERT INTO attendance_logs (studentId, date, status, validationStatus, validationReason)
             VALUES (?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-                status = VALUES(status),
-                validationStatus = VALUES(validationStatus),
-                validationReason = VALUES(validationReason)
+            ON CONFLICT (studentId, date) DO UPDATE SET 
+                status = EXCLUDED.status,
+                validationStatus = EXCLUDED.validationStatus,
+                validationReason = EXCLUDED.validationReason
         `;
 
         await pool.query(insertQuery, [studentId, date, status, valStatus, valReason]);
@@ -791,8 +807,8 @@ app.get('/api/attendance/detailed-logs', async (req, res) => {
 app.post('/api/attendance/validate', async (req, res) => {
     const { studentId, date } = req.body;
     try {
-        const [[settings]] = await pool.query('SELECT setting_value FROM system_settings WHERE setting_key = "collegeTiming"');
-        const timing = JSON.parse(settings);
+        const [[settings]] = await pool.query('SELECT setting_value FROM system_settings WHERE setting_key = 'collegeTiming'');
+        const timing = JSONB.parse(settings);
 
         const [events] = await pool.query(
             'SELECT timestamp, eventType FROM geofence_events WHERE studentId = ? AND date = ? ORDER BY timestamp ASC',
@@ -881,11 +897,11 @@ app.post('/api/calendar', async (req, res) => {
         const insertQuery = `
             INSERT INTO calendar_events (date, type, reason, status, teacherId)
             VALUES (?, ?, ?, 'Pending', ?)
-            ON DUPLICATE KEY UPDATE
-                type = ?,
-                reason = ?,
+            ON CONFLICT (date) DO UPDATE SET
+                type = EXCLUDED.type,
+                reason = EXCLUDED.reason,
                 status = 'Pending',
-                teacherId = ?
+                teacherId = EXCLUDED.teacherId
         `;
 
         for (const event of eventsToProcess) {
@@ -996,7 +1012,7 @@ app.post('/api/notices', upload.single('file'), async (req, res) => {
     try {
         const [result] = await pool.query(
             `INSERT INTO notices (title, description, type, file_path, audience, branch, batch, start_date, end_date, priority)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
             [title, description, type, file_path, audience, branch, batch, sDate, eDate, priority || 'Normal']
         );
         res.json({ success: true, noticeId: result.insertId });
@@ -1056,7 +1072,7 @@ app.post('/api/notices/:id/view', async (req, res) => {
     const { id } = req.params;
     const { userId } = req.body;
     try {
-        await pool.query('INSERT IGNORE INTO notice_analytics (notice_id, user_id) VALUES (?, ?)', [id, userId]);
+        await pool.query('INSERT INTO notice_analytics (notice_id, user_id) VALUES (?, ?) ON CONFLICT DO NOTHING', [id, userId]);
         res.json({ success: true });
     } catch (error) {
         console.error("Track Notice View Error:", error);
