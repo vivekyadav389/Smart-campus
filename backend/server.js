@@ -185,7 +185,8 @@ app.post('/api/auth/login', async (req, res) => {
         if (users.length === 0) {
             return res.status(401).json({ success: false, error: 'Invalid email or password' });
         }
-        const user = users[0];
+        let user = users[0];
+        user = { ...user, profilePic: user.profilepic, registeredDeviceId: user.registereddeviceid };
 
         if (user.role === 'student') {
             const { rows: existingBinding } = await pool.query(
@@ -437,8 +438,8 @@ app.get('/api/users', async (req, res) => {
     try {
         const { requesterId } = req.query;
         let queryStr = `
-            SELECT u.id, u.email, u.password, u.name, u.role, u.department, u.rollNo, u.branch, u.batch, u.registeredDeviceId, u.totalClasses, u.mobile, u.profilePic,
-            (SELECT COUNT(*) FROM attendance_logs WHERE studentId = u.id AND status = 'Present') as classesAttended 
+            SELECT u.id, u.email, u.password, u.name, u.role, u.department, u.rollNo, u.branch, u.batch, u.registereddeviceid AS "registeredDeviceId", u.totalclasses AS "totalClasses", u.mobile, u.profilepic AS "profilePic",
+            (SELECT COUNT(*) FROM attendance_logs WHERE studentId = u.id AND status = 'Present') as "classesAttended" 
             FROM users u
         `;
         let queryParams = [];
