@@ -77,7 +77,7 @@ const TeacherDashboard = () => {
             try {
                 // Fetch all users based on branch restriction
                 if (!user?.id) return;
-                const res = await fetch(API_BASE_URL + `/users?requesterId=${user.id}`);
+                const res = await fetch(API_BASE_URL + `/api/users?requesterId=${user.id}`);
                 const { users } = await res.json();
 
                 // Fetch today's attendance for everyone
