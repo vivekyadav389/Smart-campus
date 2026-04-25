@@ -143,7 +143,7 @@ const AdminDashboard = () => {
         try {
             // Fetch users & today's attendance concurrently
             const [usersRes, todayLogs] = await Promise.all([
-                fetch((import.meta.env.VITE_API_BASE_URL || '') + '/api/users'),
+                fetch((import.meta.env.VITE_API_URL || '') + '/api/users'),
                 getTodayAttendance()
             ]);
 
@@ -181,7 +181,7 @@ const AdminDashboard = () => {
 
     const fetchDetailedLogs = useCallback(async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/attendance/detailed-logs?date=${selectedDate}`);
+            const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/attendance/detailed-logs?date=${selectedDate}`);
             const data = await res.json();
             if (data.success) {
                 setDetailedLogs(data.logs);
@@ -193,7 +193,7 @@ const AdminDashboard = () => {
 
     const fetchSecurityAlerts = useCallback(async () => {
         try {
-            const res = await fetch((import.meta.env.VITE_API_BASE_URL || '') + '/api/admin/alerts');
+            const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/admin/alerts');
             const data = await res.json();
             if (data.success) {
                 setSecurityAlerts(data.alerts);
@@ -214,7 +214,7 @@ const AdminDashboard = () => {
     const handleManualApprove = async (studentId) => {
         if (window.confirm("Approve attendance for this student manually?")) {
             try {
-                await fetch((import.meta.env.VITE_API_BASE_URL || '') + '/api/attendance/manual-mark', {
+                await fetch((import.meta.env.VITE_API_URL || '') + '/api/attendance/manual-mark', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ studentId, date: selectedDate, status: 'Present' })
@@ -229,7 +229,7 @@ const AdminDashboard = () => {
 
     const handleRunValidation = async (studentId) => {
         try {
-            const res = await fetch((import.meta.env.VITE_API_BASE_URL || '') + '/api/attendance/validate', {
+            const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/attendance/validate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ studentId, date: selectedDate })

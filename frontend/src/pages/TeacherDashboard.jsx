@@ -150,7 +150,7 @@ const TeacherDashboard = () => {
     const fetchDetailedLogs = useCallback(async () => {
         try {
             if (!user?.id) return;
-            const res = await fetch(`${API_BASE_URL}/attendance/detailed-logs?date=${selectedDate}&requesterId=${user.id}`);
+            const res = await fetch(`${API_BASE_URL}/api/attendance/detailed-logs?date=${selectedDate}&requesterId=${user.id}`);
             const data = await res.json();
             if (data.success) {
                 setDetailedLogs(data.logs);
@@ -169,7 +169,7 @@ const TeacherDashboard = () => {
     const handleManualApprove = async (studentId) => {
         if (window.confirm("Approve attendance for this student manually?")) {
             try {
-                const res = await fetch(`${API_BASE_URL}/attendance/manual-mark`, {
+                const res = await fetch(`${API_BASE_URL}/api/attendance/manual-mark`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ studentId, date: selectedDate, status: 'Present' })
@@ -190,7 +190,7 @@ const TeacherDashboard = () => {
     const handleManualReject = async (studentId) => {
         if (window.confirm("Reject attendance for this student manually?")) {
             try {
-                const res = await fetch(`${API_BASE_URL}/attendance/manual-mark`, {
+                const res = await fetch(`${API_BASE_URL}/api/attendance/manual-mark`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ studentId, date: selectedDate, status: 'Absent' })
@@ -210,7 +210,7 @@ const TeacherDashboard = () => {
 
     const handleRunValidation = async (studentId) => {
         try {
-            const res = await fetch(`${API_BASE_URL}/attendance/validate`, {
+            const res = await fetch(`${API_BASE_URL}/api/attendance/validate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ studentId, date: selectedDate })

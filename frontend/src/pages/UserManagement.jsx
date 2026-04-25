@@ -20,7 +20,7 @@ const UserManagement = () => {
 
     const loadUsers = async () => {
         try {
-            const res = await fetch(API_BASE_URL + `/users`);
+            const res = await fetch(`${API_BASE_URL}/api/users`);
             const data = await res.json();
             const allUsers = data.users || [];
             setUsers({
@@ -96,7 +96,7 @@ const UserManagement = () => {
         e.preventDefault();
         setIsSaving(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/users/${editingUser.id}`, {
+            const res = await fetch(`${API_BASE_URL}/api/users/${editingUser.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

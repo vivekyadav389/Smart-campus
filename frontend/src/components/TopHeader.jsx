@@ -17,7 +17,7 @@ const TopHeader = ({ user, onLogout, onToggleSidebar }) => {
                     branch: user.branch || 'All',
                     batch: user.batch || 'All'
                 });
-                const res = await fetch(`${API_BASE_URL}/notices/active?${params}`);
+                const res = await fetch(`${API_BASE_URL}/api/notices/active?${params}`);
                 const data = await res.json();
                 if (data.success) {
                     const unread = data.notices.filter(n => n.viewCount === 0);

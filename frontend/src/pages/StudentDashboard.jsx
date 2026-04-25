@@ -113,7 +113,7 @@ const StudentDashboard = () => {
     // Fetch API proxy helper
     const markAttendance = async (userId, status, timeIn, timeOut, sessions = []) => {
         try {
-            await fetch((import.meta.env.VITE_API_BASE_URL || '') + '/api/attendance/mark', {
+            await fetch((import.meta.env.VITE_API_URL || '') + '/api/attendance/mark', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ studentId: userId, status, timeIn, timeOut, sessions })
@@ -344,7 +344,7 @@ const StudentDashboard = () => {
                 const eventType = inside ? 'ENTRY' : 'EXIT';
                 console.log(`[Geofence] Transition detected: ${eventType}`);
                 try {
-                    await fetch((import.meta.env.VITE_API_BASE_URL || '') + '/api/geofence/event', {
+                    await fetch((import.meta.env.VITE_API_URL || '') + '/api/geofence/event', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({

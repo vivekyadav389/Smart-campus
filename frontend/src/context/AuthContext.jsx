@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }) => {
         if (user && user.role === 'student' && user.id) {
             interval = setInterval(async () => {
                 try {
-                    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+                    const apiBaseUrl = import.meta.env.VITE_API_URL || '';
                     const res = await fetch(`${apiBaseUrl}/api/auth/verify-device/${user.id}`);
                     if (res.ok) {
                         const data = await res.json();

@@ -33,7 +33,7 @@ const NoticeManagement = () => {
 
     const fetchNotices = async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/notices`);
+            const res = await fetch(`${API_BASE_URL}/api/notices`);
             const data = await res.json();
             if (data.success) {
                 setNotices(data.notices);
@@ -104,7 +104,7 @@ const NoticeManagement = () => {
 
         try {
             const method = formData.id ? 'PUT' : 'POST';
-            const url = formData.id ? `${API_BASE_URL}/notices/${formData.id}` : `${API_BASE_URL}/notices`;
+            const url = formData.id ? `${API_BASE_URL}/api/notices/${formData.id}` : `${API_BASE_URL}/api/notices`;
             
             const res = await fetch(url, {
                 method,
@@ -130,7 +130,7 @@ const NoticeManagement = () => {
         if (!window.confirm("Are you sure you want to delete this notice?")) return;
         
         try {
-            const res = await fetch(`${API_BASE_URL}/notices/${id}`, { method: 'DELETE' });
+            const res = await fetch(`${API_BASE_URL}/api/notices/${id}`, { method: 'DELETE' });
             const data = await res.json();
             if (data.success) {
                 fetchNotices();
@@ -142,7 +142,7 @@ const NoticeManagement = () => {
 
     const handleShowStats = async (id) => {
         try {
-            const res = await fetch(`${API_BASE_URL}/notices/${id}/stats`);
+            const res = await fetch(`${API_BASE_URL}/api/notices/${id}/stats`);
             const data = await res.json();
             if (data.success) {
                 setSelectedStats(data.stats);

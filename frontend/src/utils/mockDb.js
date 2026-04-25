@@ -1,13 +1,19 @@
-export const API_BASE_URL = (import.meta.env.VITE_API_URL || '') + '/api';
+export const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 // --- Authentication ---
 export const authenticateUser = async (email, password, deviceId) => {
     try {
-        const res = await fetch(`${API_BASE_URL}/auth/login`, {
+        const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password, deviceId })
         });
+
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(text || "API Error");
+        }
+
         const data = await res.json();
         return data;
     } catch (error) {
@@ -18,7 +24,7 @@ export const authenticateUser = async (email, password, deviceId) => {
 
 export const addUser = async (role, userData) => {
     try {
-        const res = await fetch(`${API_BASE_URL}/users`, {
+        const res = await fetch(`${API_BASE_URL}/api/users`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...userData, role })
@@ -33,10 +39,10 @@ export const addUser = async (role, userData) => {
 // --- Statistics ---
 export const getStats = async () => {
     try {
-        const res = await fetch(`${API_BASE_URL}/users`);
+        const res = await fetch(`${API_BASE_URL}/api/users`);
         const { users } = await res.json();
 
-        const todayRes = await fetch(`${API_BASE_URL}/attendance/today`);
+        const todayRes = await fetch(`${API_BASE_URL}/api/attendance/today`);
         const { logs } = await todayRes.json();
 
         const students = users?.filter(u => u.role === 'student') || [];
@@ -58,11 +64,11 @@ export const getStats = async () => {
 
 export const getDepartmentStats = async () => {
     try {
-        const res = await fetch(`${API_BASE_URL}/users`);
+        const res = await fetch(`${API_BASE_URL}/api/users`);
         const { users } = await res.json();
         const students = users?.filter(u => u.role === 'student') || [];
 
-        const todayRes = await fetch(`${API_BASE_URL}/attendance/today`);
+        const todayRes = await fetch(`${API_BASE_URL}/api/attendance/today`);
         const { logs } = await todayRes.json();
 
         // Group by department 
@@ -95,7 +101,7 @@ export const getDepartmentStats = async () => {
 // --- System Settings ---
 export const getCollegeTiming = async () => {
     try {
-        const res = await fetch(`${API_BASE_URL}/settings`);
+        const res = await fetch(`${API_BASE_URL}/api/settings`);
         const data = await res.json();
         return data.settings?.collegeTiming || { startTime: '08:00', endTime: '16:00' };
     } catch {
@@ -105,7 +111,7 @@ export const getCollegeTiming = async () => {
 
 export const updateCollegeTiming = async (startTime, endTime, adminId) => {
     try {
-        await fetch(`${API_BASE_URL}/settings/timings`, {
+        await fetch(`${API_BASE_URL}/api/settings/timings`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ startTime, endTime, adminId })
@@ -132,7 +138,7 @@ export const getGeofence = async () => {
 
     // 2. Fallback to server
     try {
-        const res = await fetch(`${API_BASE_URL}/settings`);
+        const res = await fetch(`${API_BASE_URL}/api/settings`);
         const data = await res.json();
         const gf = data.settings?.geofence;
         if (gf && (gf.polygon?.length > 0 || gf.radius)) {
@@ -156,7 +162,7 @@ export const updateGeofence = async (geofenceData) => {
 
     // 2. Also try to sync to server (best-effort, don't fail the operation)
     try {
-        const res = await fetch(`${API_BASE_URL}/settings/geofence`, {
+        const res = await fetch(`${API_BASE_URL}/api/settings/geofence`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(geofenceData)
@@ -174,7 +180,7 @@ export const updateGeofence = async (geofenceData) => {
 // --- Device Restriction Management (Admin) ---
 export const getDeviceRequests = async () => {
     try {
-        const res = await fetch(`${API_BASE_URL}/device-requests`);
+        const res = await fetch(`${API_BASE_URL}/api/device-requests`);
         const data = await res.json();
         return data.requests || [];
     } catch {
@@ -184,7 +190,7 @@ export const getDeviceRequests = async () => {
 
 export const approveDeviceRequest = async (requestId) => {
     try {
-        await fetch(`${API_BASE_URL}/device-requests/approve`, {
+        await fetch(`${API_BASE_URL}/api/device-requests/approve`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ requestId })
@@ -197,7 +203,7 @@ export const approveDeviceRequest = async (requestId) => {
 
 export const rejectDeviceRequest = async (requestId) => {
     try {
-        await fetch(`${API_BASE_URL}/device-requests/reject`, {
+        await fetch(`${API_BASE_URL}/api/device-requests/reject`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ requestId })
@@ -211,7 +217,7 @@ export const rejectDeviceRequest = async (requestId) => {
 // --- Attendance Tracking ---
 export const markAttendance = async (studentId, status, timeIn, timeOut) => {
     try {
-        await fetch(`${API_BASE_URL}/attendance/mark`, {
+        await fetch(`${API_BASE_URL}/api/attendance/mark`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ studentId, status, timeIn, timeOut })
@@ -224,7 +230,7 @@ export const markAttendance = async (studentId, status, timeIn, timeOut) => {
 
 export const markManualAttendance = async (studentId, date, status) => {
     try {
-        const res = await fetch(`${API_BASE_URL}/attendance/manual-mark`, {
+        const res = await fetch(`${API_BASE_URL}/api/attendance/manual-mark`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ studentId, date, status })
@@ -238,7 +244,7 @@ export const markManualAttendance = async (studentId, date, status) => {
 
 export const getAttendanceLogs = async (studentId) => {
     try {
-        const res = await fetch(`${API_BASE_URL}/attendance/logs/${studentId}`);
+        const res = await fetch(`${API_BASE_URL}/api/attendance/logs/${studentId}`);
         const data = await res.json();
         return data.logs || [];
     } catch {
@@ -248,7 +254,7 @@ export const getAttendanceLogs = async (studentId) => {
 
 export const getTodayAttendance = async () => {
     try {
-        const res = await fetch(`${API_BASE_URL}/attendance/today`);
+        const res = await fetch(`${API_BASE_URL}/api/attendance/today`);
         const data = await res.json();
         return data.logs || [];
     } catch {
@@ -258,7 +264,7 @@ export const getTodayAttendance = async () => {
 
 export const getAttendanceByDate = async (date) => {
     try {
-        const res = await fetch(`${API_BASE_URL}/attendance/date/${date}`);
+        const res = await fetch(`${API_BASE_URL}/api/attendance/date/${date}`);
         const data = await res.json();
         return data.logs || [];
     } catch {
@@ -268,7 +274,7 @@ export const getAttendanceByDate = async (date) => {
 
 export const getAttendanceRange = async (startDate, endDate) => {
     try {
-        const res = await fetch(`${API_BASE_URL}/attendance/range?startDate=${startDate}&endDate=${endDate}`);
+        const res = await fetch(`${API_BASE_URL}/api/attendance/range?startDate=${startDate}&endDate=${endDate}`);
         const data = await res.json();
         return data.logs || [];
     } catch {
@@ -279,7 +285,7 @@ export const getAttendanceRange = async (startDate, endDate) => {
 // --- Calendar Feature ---
 export const getCalendarEvents = async (status) => {
     try {
-        let url = `${API_BASE_URL}/calendar`;
+        let url = `${API_BASE_URL}/api/calendar`;
         if (status) {
             url += `?status=${encodeURIComponent(status)}`;
         }
@@ -293,7 +299,7 @@ export const getCalendarEvents = async (status) => {
 
 export const saveCalendarEvent = async (eventDataArrayOrObj) => {
     try {
-        const res = await fetch(`${API_BASE_URL}/calendar`, {
+        const res = await fetch(`${API_BASE_URL}/api/calendar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(eventDataArrayOrObj)
@@ -307,8 +313,8 @@ export const saveCalendarEvent = async (eventDataArrayOrObj) => {
 
 export const verifyAllCalendarEvents = async () => {
     try {
-        console.log(`[mockDb] Calling PUT ${API_BASE_URL}/calendar/verify-all`);
-        const res = await fetch(`${API_BASE_URL}/calendar/verify-all`, {
+        console.log(`[mockDb] Calling PUT ${API_BASE_URL}/api/calendar/verify-all`);
+        const res = await fetch(`${API_BASE_URL}/api/calendar/verify-all`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' }
         });
@@ -323,8 +329,8 @@ export const verifyAllCalendarEvents = async () => {
 
 export const rejectAllCalendarEvents = async () => {
     try {
-        console.log(`[mockDb] Calling DELETE ${API_BASE_URL}/calendar/reject-all`);
-        const res = await fetch(`${API_BASE_URL}/calendar/reject-all`, {
+        console.log(`[mockDb] Calling DELETE ${API_BASE_URL}/api/calendar/reject-all`);
+        const res = await fetch(`${API_BASE_URL}/api/calendar/reject-all`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' }
         });
@@ -339,7 +345,7 @@ export const rejectAllCalendarEvents = async () => {
 
 export const verifyCalendarEvent = async (id) => {
     try {
-        const res = await fetch(`${API_BASE_URL}/calendar/${id}/verify`, {
+        const res = await fetch(`${API_BASE_URL}/api/calendar/${id}/verify`, {
             method: 'PUT'
         });
         const data = await res.json();
@@ -351,7 +357,7 @@ export const verifyCalendarEvent = async (id) => {
 
 export const deleteCalendarEvent = async (id) => {
     try {
-        const res = await fetch(`${API_BASE_URL}/calendar/${id}`, {
+        const res = await fetch(`${API_BASE_URL}/api/calendar/${id}`, {
             method: 'DELETE'
         });
         const data = await res.json();

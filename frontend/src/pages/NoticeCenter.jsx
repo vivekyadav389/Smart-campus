@@ -18,14 +18,14 @@ const NoticeCenter = () => {
                 branch: user.branch || 'All',
                 batch: user.batch || 'All'
             });
-            const res = await fetch(`${API_BASE_URL}/notices/active?${params}`);
+            const res = await fetch(`${API_BASE_URL}/api/notices/active?${params}`);
             const data = await res.json();
             if (data.success) {
                 setNotices(data.notices);
                 // Mark notices as viewed in background if not already viewed
                 data.notices.forEach(notice => {
                     if (notice.viewCount === 0) {
-                        fetch(`${API_BASE_URL}/notices/${notice.id}/view`, {
+                        fetch(`${API_BASE_URL}/api/notices/${notice.id}/view`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ userId: user.id })

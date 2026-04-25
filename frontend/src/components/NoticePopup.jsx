@@ -21,7 +21,7 @@ const NoticePopup = () => {
                     branch: user.branch || 'All',
                     batch: user.batch || 'All'
                 });
-                const res = await fetch(`${API_BASE_URL}/notices/active?${params}`);
+                const res = await fetch(`${API_BASE_URL}/api/notices/active?${params}`);
                 const data = await res.json();
                 if (data.success) {
                     // Filter: We will show all active notices that the user hasn't seen yet in this instance
@@ -52,7 +52,7 @@ const NoticePopup = () => {
 
         // Also Mark as viewed in DB for analytics/track
         try {
-            await fetch(`${API_BASE_URL}/notices/${currentNotice.id}/view`, {
+            await fetch(`${API_BASE_URL}/api/notices/${currentNotice.id}/view`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: user.id })
