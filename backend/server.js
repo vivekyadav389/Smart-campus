@@ -186,7 +186,7 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(401).json({ success: false, error: 'Invalid email or password' });
         }
         let user = users[0];
-        user = { ...user, profilePic: user.profilepic, registeredDeviceId: user.registereddeviceid };
+        user = { ...user, profilePic: user.profilepic, registeredDeviceId: user.registereddeviceid, rollNo: user.rollno, totalClasses: user.totalclasses };
 
         if (user.role === 'student') {
             const { rows: existingBinding } = await pool.query(
@@ -438,7 +438,7 @@ app.get('/api/users', async (req, res) => {
     try {
         const { requesterId } = req.query;
         let queryStr = `
-            SELECT u.id, u.email, u.password, u.name, u.role, u.department, u.rollNo, u.branch, u.batch, u.registereddeviceid AS "registeredDeviceId", u.totalclasses AS "totalClasses", u.mobile, u.profilepic AS "profilePic",
+            SELECT u.id, u.email, u.password, u.name, u.role, u.department, u.rollno AS "rollNo", u.branch, u.batch, u.registereddeviceid AS "registeredDeviceId", u.totalclasses AS "totalClasses", u.mobile, u.profilepic AS "profilePic",
             (SELECT COUNT(*) FROM attendance_logs WHERE studentId = u.id AND status = 'Present') as "classesAttended" 
             FROM users u
         `;
@@ -544,11 +544,13 @@ app.post('/api/attendance/manual-mark', async (req, res) => {
     }
 });
 
+const mapAttendance = (logs) => logs.map(l => ({ ...l, studentId: l.studentid, timeIn: l.timein, timeOut: l.timeout, totalDurationMinutes: l.totaldurationminutes, validationStatus: l.validationstatus, validationReason: l.validationreason }));
+
 app.get('/api/attendance/logs/:studentId', async (req, res) => {
     const { studentId } = req.params;
     try {
         const { rows: logs } = await pool.query('SELECT * FROM attendance_logs WHERE studentId = $1 ORDER BY date DESC LIMIT 10', [studentId]);
-        res.json({ success: true, logs });
+        res.json({ success: true, logs: mapAttendance(logs) });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
@@ -559,7 +561,7 @@ app.get('/api/attendance/today', async (req, res) => {
     const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     try {
         const { rows: logs } = await pool.query('SELECT * FROM attendance_logs WHERE date = $1', [today]);
-        res.json({ success: true, logs });
+        res.json({ success: true, logs: mapAttendance(logs) });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
@@ -569,7 +571,7 @@ app.get('/api/attendance/date/:date', async (req, res) => {
     const { date } = req.params;
     try {
         const { rows: logs } = await pool.query('SELECT * FROM attendance_logs WHERE date = $1', [date]);
-        res.json({ success: true, logs });
+        res.json({ success: true, logs: mapAttendance(logs) });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
@@ -580,7 +582,7 @@ app.get('/api/attendance/range', async (req, res) => {
     if (!startDate || !endDate) return res.status(400).json({ success: false, error: 'Missing startDate or endDate' });
     try {
         const { rows: logs } = await pool.query('SELECT * FROM attendance_logs WHERE date >= $1 AND date <= $2', [startDate, endDate]);
-        res.json({ success: true, logs });
+        res.json({ success: true, logs: mapAttendance(logs) });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
@@ -595,7 +597,7 @@ app.get('/api/attendance/detailed-logs', async (req, res) => {
             if (teacher.length > 0) branchFilter = teacher[0].branch;
         }
 
-        let usersQuery = "SELECT id, name, branch, batch, rollNo FROM users WHERE role = 'student'";
+        let usersQuery = "SELECT id, name, branch, batch, rollno AS \"rollNo\" FROM users WHERE role = 'student'";
         let userParams = [];
         if (branchFilter && branchFilter !== 'All') {
             usersQuery += " AND branch = $1";
