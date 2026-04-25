@@ -207,10 +207,10 @@ app.post('/api/auth/login', async (req, res) => {
                 );
             }
 
-            if (!user.registereddeviceid && !isDeviceTakenByOther) {
+            if (!user.registeredDeviceId && !isDeviceTakenByOther) {
                 await pool.query('UPDATE users SET registeredDeviceId = $1 WHERE id = $2', [deviceId, user.id]);
-                user.registereddeviceid = deviceId;
-            } else if (user.registereddeviceid !== deviceId || isDeviceTakenByOther) {
+                user.registeredDeviceId = deviceId;
+            } else if (user.registeredDeviceId !== deviceId || isDeviceTakenByOther) {
                 const { rows: existing } = await pool.query('SELECT id FROM device_requests WHERE studentId = $1 AND status = $2', [user.id, 'pending']);
                 if (existing.length === 0) {
                     const reqId = `req-${Date.now()}`;
