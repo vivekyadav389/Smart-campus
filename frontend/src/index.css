@@ -51,9 +51,6 @@ body {
   color: var(--color-text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  width: 100%;
-  max-width: 100vw;
-  overflow-x: hidden;
 }
 
 a {
@@ -318,9 +315,6 @@ button {
   margin-left: var(--sidebar-width);
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  width: 100%;
-  max-width: 100vw;
 }
 
 .top-header {
@@ -381,8 +375,6 @@ button {
 
   .main-wrapper {
     margin-left: 0;
-    width: 100vw;
-    max-width: 100vw;
   }
 
   .top-header {
