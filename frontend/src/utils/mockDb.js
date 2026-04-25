@@ -9,12 +9,14 @@ export const authenticateUser = async (email, password, deviceId) => {
             body: JSON.stringify({ email, password, deviceId })
         });
 
-        if (!res.ok) {
-            const text = await res.text();
+        const text = await res.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
             throw new Error(text || "API Error");
         }
 
-        const data = await res.json();
         return data;
     } catch (error) {
         console.error("Auth API Error:", error);
