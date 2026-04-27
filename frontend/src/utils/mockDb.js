@@ -127,7 +127,23 @@ export const updateCollegeTiming = async (startTime, endTime, adminId) => {
 const GEOFENCE_KEY = 'sc_geofence_data';
 
 export const getGeofence = async () => {
-    // 1. Try localStorage first (fastest, always fresh from last save)
+    // 1. Try server first (Source of Truth)
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/settings`);
+        if (res.ok) {
+            const data = await res.json();
+            const gf = data.settings?.geofence;
+            if (gf && (gf.polygon?.length > 0 || gf.radius)) {
+                // Cache it locally for offline fallback
+                localStorage.setItem(GEOFENCE_KEY, JSON.stringify(gf));
+                return gf;
+            }
+        }
+    } catch (err) {
+        console.warn('[Geofence] Server fetch failed, falling back to local cache:', err.message);
+    }
+
+    // 2. Fallback to localStorage
     try {
         const local = localStorage.getItem(GEOFENCE_KEY);
         if (local) {
@@ -138,44 +154,34 @@ export const getGeofence = async () => {
         }
     } catch (_) { }
 
-    // 2. Fallback to server
-    try {
-        const res = await fetch(`${API_BASE_URL}/api/settings`);
-        const data = await res.json();
-        const gf = data.settings?.geofence;
-        if (gf && (gf.polygon?.length > 0 || gf.radius)) {
-            // Cache it locally for next time
-            localStorage.setItem(GEOFENCE_KEY, JSON.stringify(gf));
-            return gf;
-        }
-    } catch (_) { }
-
     return { center: [19.1334, 72.9133], radius: 300 };
 };
 
 export const updateGeofence = async (geofenceData) => {
-    // 1. Always save to localStorage immediately (this is the source of truth)
-    try {
-        localStorage.setItem(GEOFENCE_KEY, JSON.stringify(geofenceData));
-        console.log('[Geofence] Saved to localStorage:', geofenceData);
-    } catch (e) {
-        console.error('[Geofence] localStorage write failed:', e);
-    }
-
-    // 2. Also try to sync to server (best-effort, don't fail the operation)
+    // 1. Save to server first
     try {
         const res = await fetch(`${API_BASE_URL}/api/settings/geofence`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(geofenceData)
         });
-        const data = await res.json();
-        console.log('[Geofence API] server response:', data);
+        
+        if (res.ok) {
+            // 2. If server success, update local cache
+            localStorage.setItem(GEOFENCE_KEY, JSON.stringify(geofenceData));
+            return true;
+        }
     } catch (err) {
-        console.warn('[Geofence API] Server sync failed (data still saved locally):', err.message);
+        console.error('[Geofence] Server save failed:', err);
     }
 
-    return true; // Always succeed since localStorage worked
+    // Fallback: If server is down, we still save locally so the CURRENT device works, 
+    // but we return false or some indication? Actually, for UX let's keep it working locally.
+    try {
+        localStorage.setItem(GEOFENCE_KEY, JSON.stringify(geofenceData));
+    } catch (_) {}
+    
+    return false; // Return false if server sync failed
 };
 
 
