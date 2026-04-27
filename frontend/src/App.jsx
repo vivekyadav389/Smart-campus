@@ -15,6 +15,7 @@ L.Icon.Default.mergeOptions({
 import Sidebar from './components/Sidebar';
 import TopHeader from './components/TopHeader';
 import NoticePopup from './components/NoticePopup';
+import BackgroundPermissionPrompt from './components/BackgroundPermissionPrompt';
 
 // Pages
 import Login from './pages/Login';
@@ -113,6 +114,7 @@ function App() {
                     onClose={() => setIsSidebarOpen(false)}
                 />
                 {userRole !== 'admin' && <NoticePopup />}
+                <BackgroundPermissionPrompt />
 
                 <div className="main-wrapper">
                     <TopHeader

@@ -141,6 +141,17 @@ const StudentDashboard = () => {
                     setGeofenceRadius(geofence.radius || 300);
                 }
             }
+
+            // Request Wake Lock to prevent sleep during tracking
+            if ('wakeLock' in navigator) {
+                try {
+                    await navigator.wakeLock.request('screen');
+                    console.log('[WakeLock] Screen stay-awake active.');
+                } catch (err) {
+                    console.warn('[WakeLock] Failed:', err.message);
+                }
+            }
+
             if (user?.id) {
                 const [logs, verifiedEvents, timing] = await Promise.all([
                     getAttendanceLogs(user.id),
