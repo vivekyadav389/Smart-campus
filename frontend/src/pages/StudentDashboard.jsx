@@ -176,9 +176,9 @@ const StudentDashboard = () => {
                     });
                     const isWeekend = d.getDay() === 0 || d.getDay() === 6;
 
-                    // Check if this date is a verified holiday
                     const holidayEvent = verifiedEvents.find(e => {
                         if (e.type !== 'Holiday') return false;
+                        if (e.batch && e.batch !== 'All' && e.batch !== user.batch) return false;
                         return toISODate(e.date) === localISOTime;
                     });
 

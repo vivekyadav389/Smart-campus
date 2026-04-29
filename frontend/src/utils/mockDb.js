@@ -291,11 +291,15 @@ export const getAttendanceRange = async (startDate, endDate) => {
 };
 
 // --- Calendar Feature ---
-export const getCalendarEvents = async (status) => {
+export const getCalendarEvents = async (status, batch) => {
     try {
         let url = `${API_BASE_URL}/api/calendar`;
-        if (status) {
-            url += `?status=${encodeURIComponent(status)}`;
+        let params = [];
+        if (status) params.push(`status=${encodeURIComponent(status)}`);
+        if (batch) params.push(`batch=${encodeURIComponent(batch)}`);
+        
+        if (params.length > 0) {
+            url += `?${params.join('&')}`;
         }
         const res = await fetch(url);
         const data = await res.json();

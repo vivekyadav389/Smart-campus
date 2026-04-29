@@ -52,11 +52,13 @@ CREATE TABLE IF NOT EXISTS device_requests (
 -- Table: calendar_events
 CREATE TABLE IF NOT EXISTS calendar_events (
     id SERIAL PRIMARY KEY,
-    date DATE NOT NULL UNIQUE,
+    date DATE NOT NULL,
     type VARCHAR(50) NOT NULL CHECK (type IN ('Class', 'Holiday')),
     reason VARCHAR(255),
     status VARCHAR(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Verified')),
-    teacherId VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL
+    teacherId VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL,
+    batch VARCHAR(50) DEFAULT 'All',
+    UNIQUE (date, batch)
 );
 
 -- Insert Default Admin

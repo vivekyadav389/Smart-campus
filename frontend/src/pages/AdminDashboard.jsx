@@ -768,18 +768,20 @@ const AdminDashboard = () => {
                 const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
                 const blanks = Array.from({ length: firstDayOfMonth }, (_, i) => i);
 
-                const getEventForDate = (dateLocalStr) => calendarReqs.find(e => {
+                const getEventsForDate = (dateLocalStr) => calendarReqs.filter(e => {
                     const d = new Date(e.date);
                     const dbDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                     return dbDate === dateLocalStr;
                 });
 
+                const getEventForDate = (dateLocalStr) => getEventsForDate(dateLocalStr)[0];
+
                 const handleDayClick = (day) => {
                     const localDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                    const existingEvent = getEventForDate(localDateStr);
+                    const existingEvents = getEventsForDate(localDateStr);
 
-                    if (existingEvent) {
-                        setSelectedEvent(existingEvent);
+                    if (existingEvents.length > 0) {
+                        setSelectedEvent(existingEvents[0]);
                         setIsEventModalOpen(true);
                     }
                 };
@@ -825,7 +827,8 @@ const AdminDashboard = () => {
                             {blanks.map(blank => <div key={`blank-${blank}`} style={{ padding: '2rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem' }}></div>)}
                             {days.map(day => {
                                 const localDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                                const evt = getEventForDate(localDateStr);
+                                const evts = getEventsForDate(localDateStr);
+                                const evt = evts[0];
 
                                 let bgClass = 'bg-white';
                                 let borderClass = 'border-gray-200';
@@ -846,7 +849,7 @@ const AdminDashboard = () => {
                                         onClick={() => handleDayClick(day)}
                                         className={`relative ${evt ? 'cursor-pointer hover:shadow-md transition-shadow' : ''} ${bgClass}`}
                                         style={{
-                                            padding: '0.5rem',
+                                            padding: '0.35rem',
                                             minHeight: '100px',
                                             border: `1px solid var(--color-border)`,
                                             borderColor: borderClass !== 'border-gray-200' ? `var(--${borderClass.replace('border-', 'color-')})` : undefined,
@@ -855,22 +858,25 @@ const AdminDashboard = () => {
                                             flexDirection: 'column'
                                         }}
                                     >
-                                        <span style={{ fontWeight: 500, alignSelf: 'flex-end', color: 'var(--color-text-secondary)' }}>{day}</span>
-                                        {evt && (
-                                            <div style={{ marginTop: 'auto', fontSize: '0.75rem', textAlign: 'left' }}>
-                                                <div style={{
-                                                    fontWeight: 600,
-                                                    color: evt.type === 'Holiday' ? (evt.status === 'Verified' ? 'var(--color-success)' : '#ca8a04') : 'var(--color-primary)'
-                                                }}>{evt.type}</div>
-                                                <div style={{ color: 'var(--color-text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={evt.reason}>
-                                                    {evt.reason || 'No reason'}
+                                        <span style={{ fontWeight: 500, alignSelf: 'flex-end', color: 'var(--color-text-secondary)', fontSize: '0.8rem' }}>{day}</span>
+                                        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.2rem', maxHeight: '70px', overflowY: 'auto' }}>
+                                            {evts.map((ev, idx) => (
+                                                <div 
+                                                    key={idx} 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedEvent(ev);
+                                                        setIsEventModalOpen(true);
+                                                    }}
+                                                    style={{ padding: '0.15rem 0.25rem', borderRadius: '0.25rem', backgroundColor: ev.type === 'Holiday' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)', fontSize: '0.65rem', cursor: 'pointer' }}
+                                                >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                                                        <span style={{ color: ev.type === 'Holiday' ? 'var(--color-danger)' : 'var(--color-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.type}</span>
+                                                        <span style={{ color: '#64748b', fontSize: '0.55rem' }}>{ev.batch}</span>
+                                                    </div>
                                                 </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.65rem', marginTop: '0.25rem', color: evt.status === 'Pending' ? 'var(--color-warning)' : 'var(--color-success)' }}>
-                                                    {evt.status === 'Pending' ? <Activity size={10} /> : <CheckCircle size={10} />}
-                                                    {evt.status}
-                                                </div>
-                                            </div>
-                                        )}
+                                            ))}
+                                        </div>
                                     </div>
                                 );
                             })}
@@ -903,6 +909,10 @@ const AdminDashboard = () => {
                                         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.5rem' }}>
                                             <span style={{ color: 'var(--color-text-secondary)' }}>Reason / Notes</span>
                                             <span style={{ fontWeight: 500 }}>{selectedEvent.reason || '-'}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.5rem' }}>
+                                            <span style={{ color: 'var(--color-text-secondary)' }}>Target Batch</span>
+                                            <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{selectedEvent.batch || 'All'}</span>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <span style={{ color: 'var(--color-text-secondary)' }}>Requested By</span>

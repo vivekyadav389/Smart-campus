@@ -51,7 +51,7 @@ const TeacherDashboard = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [isEventModalOpen, setIsEventModalOpen] = useState(false);
     const [selectedDates, setSelectedDates] = useState([]);
-    const [eventForm, setEventForm] = useState({ type: 'Class', reason: '' });
+    const [eventForm, setEventForm] = useState({ type: 'Class', reason: '', batch: 'All' });
 
     // Manual Attendance States
     const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -337,9 +337,7 @@ const TeacherDashboard = () => {
     const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
     const blanks = Array.from({ length: firstDayOfMonth }, (_, i) => i);
 
-    const getEventForDate = (dateLocalStr) => calendarEvents.find(e => {
-        // e.date is a string from the DB (e.g. "2026-03-10T00:00:00.000Z" or similar)
-        // We want to extract only the date part in a way that ignore UTC offsets
+    const getEventsForDate = (dateLocalStr) => calendarEvents.filter(e => {
         const d = new Date(e.date);
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -347,6 +345,8 @@ const TeacherDashboard = () => {
         const dbDate = `${year}-${month}-${day}`;
         return dbDate === dateLocalStr;
     });
+
+    const getEventForDate = (dateLocalStr) => getEventsForDate(dateLocalStr)[0];
 
     const handleDayClick = (e, day) => {
         e.preventDefault();
@@ -369,12 +369,12 @@ const TeacherDashboard = () => {
         if (selectedDates.length === 1) {
             const existingEvent = getEventForDate(selectedDates[0]);
             if (existingEvent) {
-                setEventForm({ type: existingEvent.type, reason: existingEvent.reason || '' });
+                setEventForm({ type: existingEvent.type, reason: existingEvent.reason || '', batch: existingEvent.batch || 'All' });
             } else {
-                setEventForm({ type: 'Class', reason: '' });
+                setEventForm({ type: 'Class', reason: '', batch: 'All' });
             }
         } else {
-            setEventForm({ type: 'Class', reason: '' });
+            setEventForm({ type: 'Class', reason: '', batch: 'All' });
         }
         setIsEventModalOpen(true);
     };
@@ -397,7 +397,8 @@ const TeacherDashboard = () => {
             date: dateStr,
             type: eventForm.type,
             reason: eventForm.reason,
-            teacherId: user.id
+            teacherId: user.id,
+            batch: eventForm.batch
         }));
 
         const result = await saveCalendarEvent(eventsPayload);
@@ -740,58 +741,56 @@ const TeacherDashboard = () => {
                             <div key={day} style={{ fontWeight: 600, color: 'var(--color-text-secondary)', padding: '0.5rem' }}>{day}</div>
                         ))}
                         {blanks.map(blank => <div key={`blank-${blank}`} style={{ padding: '2rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem' }}></div>)}
-                        {days.map(day => {
-                            const localDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                            const evt = getEventForDate(localDateStr);
+                            {days.map(day => {
+                                const localDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                const evts = getEventsForDate(localDateStr);
+                                const evt = evts[0];
 
-                            let bgClass = 'bg-white';
-                            let borderClass = 'border-gray-200';
+                                let bgClass = 'bg-white';
+                                let borderClass = 'border-gray-200';
 
-                            if (evt) {
-                                if (evt.type === 'Holiday') {
-                                    bgClass = evt.status === 'Verified' ? 'bg-green-50' : 'bg-yellow-50';
-                                    borderClass = evt.status === 'Verified' ? 'border-green-200' : 'border-yellow-200';
-                                } else {
-                                    bgClass = evt.status === 'Verified' ? 'bg-blue-50' : 'bg-gray-100';
-                                    borderClass = evt.status === 'Verified' ? 'border-blue-200' : 'border-gray-300';
+                                if (evt) {
+                                    if (evt.type === 'Holiday') {
+                                        bgClass = evt.status === 'Verified' ? 'bg-green-50' : 'bg-yellow-50';
+                                        borderClass = evt.status === 'Verified' ? 'border-green-200' : 'border-yellow-200';
+                                    } else {
+                                        bgClass = evt.status === 'Verified' ? 'bg-blue-50' : 'bg-gray-100';
+                                        borderClass = evt.status === 'Verified' ? 'border-blue-200' : 'border-gray-300';
+                                    }
                                 }
-                            }
 
-                            const isSelected = selectedDates.includes(localDateStr);
+                                const isSelected = selectedDates.includes(localDateStr);
 
-                            return (
-                                <div
-                                    key={day}
-                                    onClick={(e) => handleDayClick(e, day)}
-                                    className={`cursor-pointer hover:shadow-md transition-shadow relative ${bgClass}`}
-                                    style={{
-                                        padding: '0.5rem',
-                                        minHeight: '100px',
-                                        border: isSelected ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
-                                        borderRadius: '0.5rem',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        backgroundColor: isSelected ? 'var(--color-primary-bg)' : undefined
-                                    }}
-                                >
-                                    <span style={{ fontWeight: isSelected ? 700 : 500, alignSelf: 'flex-end', color: isSelected ? 'var(--color-primary)' : 'var(--color-text-secondary)' }}>{day}</span>
-                                    {evt && (
-                                        <div style={{ marginTop: 'auto', fontSize: '0.75rem', textAlign: 'left' }}>
-                                            <div style={{
-                                                fontWeight: 600,
-                                                color: evt.type === 'Holiday' ? (evt.status === 'Verified' ? 'var(--color-success)' : '#ca8a04') : 'var(--color-primary)'
-                                            }}>{evt.type}</div>
-                                            <div style={{ color: 'var(--color-text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={evt.reason}>
-                                                {evt.reason || 'No reason'}
-                                            </div>
-                                            <div style={{ fontSize: '0.65rem', marginTop: '0.25rem', color: evt.status === 'Pending' ? 'var(--color-warning)' : 'var(--color-success)' }}>
-                                                {evt.status}
-                                            </div>
+                                return (
+                                    <div
+                                        key={day}
+                                        onClick={(e) => handleDayClick(e, day)}
+                                        className={`cursor-pointer hover:shadow-md transition-shadow relative ${bgClass}`}
+                                        style={{
+                                            padding: '0.35rem',
+                                            minHeight: '100px',
+                                            border: isSelected ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                                            borderRadius: '0.5rem',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            backgroundColor: isSelected ? 'var(--color-primary-bg)' : undefined,
+                                            overflow: 'hidden'
+                                        }}
+                                    >
+                                        <span style={{ fontWeight: isSelected ? 700 : 500, alignSelf: 'flex-end', color: isSelected ? 'var(--color-primary)' : 'var(--color-text-secondary)', fontSize: '0.8rem' }}>{day}</span>
+                                        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.2rem', maxHeight: '70px', overflowY: 'auto' }}>
+                                            {evts.map((ev, idx) => (
+                                                <div key={idx} style={{ padding: '0.15rem 0.25rem', borderRadius: '0.25rem', backgroundColor: ev.type === 'Holiday' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)', fontSize: '0.65rem' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                                                        <span style={{ color: ev.type === 'Holiday' ? 'var(--color-danger)' : 'var(--color-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.type}</span>
+                                                        <span style={{ color: '#64748b', fontSize: '0.55rem' }}>{ev.batch}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                    </div>
+                                );
+                            })}
                     </div>
 
                     {/* Bulk Action Footer */}
@@ -870,6 +869,23 @@ const TeacherDashboard = () => {
                                         >
                                             <option value="Class">Extra Class</option>
                                             <option value="Holiday">Holiday</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.875rem', color: 'var(--color-text-primary)' }}>Batch</label>
+                                        <select
+                                            value={eventForm.batch}
+                                            onChange={(e) => setEventForm({ ...eventForm, batch: e.target.value })}
+                                            className="search-input"
+                                            style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--color-border)' }}
+                                        >
+                                            <option value="All">All Batches</option>
+                                            <option value="2021">Batch 2021</option>
+                                            <option value="2022">Batch 2022</option>
+                                            <option value="2023">Batch 2023</option>
+                                            <option value="2024">Batch 2024</option>
+                                            <option value="2025">Batch 2025</option>
+                                            <option value="2026">Batch 2026</option>
                                         </select>
                                     </div>
                                     <div>

@@ -691,13 +691,27 @@ app.post('/api/attendance/validate', async (req, res) => {
 
 app.get('/api/calendar', async (req, res) => {
     try {
-        const { status } = req.query;
-        let query = 'SELECT * FROM calendar_events ORDER BY date ASC';
+        const { status, batch } = req.query;
+        let query = 'SELECT * FROM calendar_events';
+        let conditions = [];
         let params = [];
+
         if (status) {
-            query = 'SELECT * FROM calendar_events WHERE status = $1 ORDER BY date ASC';
-            params = [status];
+            conditions.push(`status = $${conditions.length + 1}`);
+            params.push(status);
         }
+        
+        if (batch && batch !== 'All') {
+            conditions.push(`(batch = $${conditions.length + 1} OR batch = 'All')`);
+            params.push(batch);
+        }
+
+        if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' AND ');
+        }
+        
+        query += ' ORDER BY date ASC';
+
         const { rows: events } = await pool.query(query, params);
         res.json({ success: true, events });
     } catch (error) {
@@ -709,9 +723,9 @@ app.post('/api/calendar', async (req, res) => {
     const eventsToProcess = Array.isArray(req.body) ? req.body : [req.body];
     try {
         const insertQuery = `
-            INSERT INTO calendar_events (date, type, reason, status, teacherId)
-            VALUES ($1, $2, $3, 'Pending', $4)
-            ON CONFLICT (date) DO UPDATE SET
+            INSERT INTO calendar_events (date, type, reason, status, teacherId, batch)
+            VALUES ($1, $2, $3, 'Pending', $4, $5)
+            ON CONFLICT (date, batch) DO UPDATE SET
                 type = EXCLUDED.type,
                 reason = EXCLUDED.reason,
                 status = 'Pending',
@@ -722,11 +736,12 @@ app.post('/api/calendar', async (req, res) => {
             const type = event.type || null;
             const reason = event.reason || '';
             const teacherId = event.teacherId || null;
+            const batch = event.batch || 'All';
             try {
-                await pool.query(insertQuery, [date, type, reason, teacherId]);
+                await pool.query(insertQuery, [date, type, reason, teacherId, batch]);
             } catch (err) {
                 if (err.code === '23503') { 
-                    await pool.query(insertQuery, [date, type, reason, null]);
+                    await pool.query(insertQuery, [date, type, reason, null, batch]);
                 } else { throw err; }
             }
         }
