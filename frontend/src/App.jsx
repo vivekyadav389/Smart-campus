@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useState, useEffect } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 // Fix Leaflet default icon issues
 delete L.Icon.Default.prototype._getIconUrl;
@@ -168,6 +169,7 @@ function App() {
     return (
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <AppContent />
+            <SpeedInsights />
         </Router>
     );
 }
