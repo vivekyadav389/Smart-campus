@@ -187,6 +187,7 @@ const UserManagement = () => {
     }
 
     return (
+        <>
         <div className="grid gap-6 animate-fade-in relative">
             <div className="flex justify-between items-center mb-2">
                 <div>
@@ -323,6 +324,7 @@ const UserManagement = () => {
                         </tbody>
                     </table>
                 </div>
+            </div>
             </div>
 
             {/* ──────── Edit User Modal ──────── */}
@@ -638,7 +640,7 @@ const UserManagement = () => {
                     </div>
                 </div>
             )}
-        </div>
+        </>
     );
 };
 
