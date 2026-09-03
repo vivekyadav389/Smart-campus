@@ -795,7 +795,7 @@ app.get('/api/semesters/history', async (req, res) => {
 app.get('/api/calendar', async (req, res) => {
     try {
         const { status, batch, branch } = req.query;
-        let query = 'SELECT id, date, type, reason, status, "teacherId", batch, branch FROM calendar_events';
+        let query = 'SELECT id, date, type, reason, status, teacherid AS "teacherId", batch, branch FROM calendar_events';
         let conditions = [];
         let params = [];
 
@@ -832,10 +832,10 @@ app.post('/api/calendar', async (req, res) => {
     try {
         for (const evt of events) {
             await pool.query(
-                `INSERT INTO calendar_events (date, type, reason, status, "teacherId", batch, branch)
+                `INSERT INTO calendar_events (date, type, reason, status, teacherid, batch, branch)
                  VALUES ($1, $2, $3, $4, $5, $6, $7)
                  ON CONFLICT (date, branch, batch) DO UPDATE
-                 SET type = EXCLUDED.type, reason = EXCLUDED.reason, status = EXCLUDED.status, "teacherId" = EXCLUDED."teacherId"`,
+                 SET type = EXCLUDED.type, reason = EXCLUDED.reason, status = EXCLUDED.status, teacherid = EXCLUDED.teacherid`,
                 [evt.date, evt.type, evt.reason, 'Pending', evt.teacherId, evt.batch || 'All', evt.branch || 'All']
             );
         }
