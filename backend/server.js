@@ -734,16 +734,15 @@ app.post('/api/attendance/validate', async (req, res) => {
 // ─── Semesters Endpoints ───
 
 
-const updateSemesterStates = async (branch, batch) => {
+const updateSemesterStates = async () => {
     try {
-        if (!branch || branch === 'All' || !batch || batch === 'All') return;
         const now = new Date();
         const yyyy = now.getFullYear();
         const mm = String(now.getMonth() + 1).padStart(2, '0');
         const dd = String(now.getDate()).padStart(2, '0');
         const todayStr = `${yyyy}-${mm}-${dd}`;
-        await pool.query(`UPDATE semesters SET state = 'Active' WHERE status = 'Approved' AND state = 'Upcoming' AND start_date IS NOT NULL AND start_date <= $1 AND branch = $2 AND batch = $3`, [todayStr, branch, batch]);
-        await pool.query(`UPDATE semesters SET state = 'Ended' WHERE status = 'Approved' AND state = 'Active' AND end_date IS NOT NULL AND end_date < $1 AND branch = $2 AND batch = $3`, [todayStr, branch, batch]);
+        await pool.query(`UPDATE semesters SET state = 'Active' WHERE status = 'Approved' AND state = 'Upcoming' AND start_date IS NOT NULL AND start_date <= $1`, [todayStr]);
+        await pool.query(`UPDATE semesters SET state = 'Ended' WHERE status = 'Approved' AND state = 'Active' AND end_date IS NOT NULL AND end_date < $1`, [todayStr]);
     } catch (err) {
         console.error("Error auto-updating semester states:", err);
     }
@@ -753,7 +752,7 @@ app.get('/api/semesters', async (req, res) => {
     try {
         const { branch, batch, status, state } = req.query;
         if (branch && batch) {
-            await updateSemesterStates(branch, batch);
+            await updateSemesterStates();
         }
         
         let query = `
@@ -1031,7 +1030,7 @@ app.get('/api/semesters/active', async (req, res) => {
     const { branch, batch } = req.query;
     if (!branch || !batch || branch === 'All' || batch === 'All') return res.json({ success: true, semester: null });
     try {
-        await updateSemesterStates(branch, batch);
+        await updateSemesterStates();
         const { rows } = await pool.query(`SELECT * FROM semesters WHERE branch = $1 AND batch = $2 AND status = 'Approved' AND state IN ('Active', 'Upcoming') ORDER BY state ASC LIMIT 1`, [branch, batch]);
         res.json({ success: true, semester: rows.length > 0 ? rows[0] : null });
     } catch (error) {
