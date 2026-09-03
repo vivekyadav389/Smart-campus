@@ -168,7 +168,7 @@ const StudentDashboard = () => {
                     getAttendanceLogs(user.id),
                     getCalendarEvents('Verified', user.batch, user.branch),
                     getCollegeTiming(),
-                    getSemesters(user.branch, user.batch, 'Active'),
+                    getSemesters(user.branch, user.batch, null, 'Active'),
                     getUsers()
                 ]);
 
@@ -295,6 +295,7 @@ const StudentDashboard = () => {
                 });
 
                 
+                
                 // Re-calculate accurately by iterating day by day (matching teacher's exact logic)
                 const now = new Date();
                 let calcEnd = semEnd < now ? semEnd : now;
@@ -303,7 +304,7 @@ const StudentDashboard = () => {
                 let trueTotalClasses = 0;
                 let trueClassesAttended = 0;
 
-                if (semStart <= calcEnd) {
+                if (activeSems && activeSems.length > 0 && semStart <= calcEnd) {
                     for (let d = new Date(semStart); d <= calcEnd; d.setDate(d.getDate() + 1)) {
                         const localDateStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
                         const isWeekend = d.getDay() === 0 || d.getDay() === 6;
@@ -321,12 +322,15 @@ const StudentDashboard = () => {
                             }
                         }
                     }
+                } else {
+                    // No active semester, so total classes is 0
+                    trueTotalClasses = 0;
+                    trueClassesAttended = 0;
                 }
-                
-                if (trueTotalClasses < 1) trueTotalClasses = 1; // Prevent division by zero
 
 
-                const truePercentage = Math.round((trueClassesAttended / trueTotalClasses) * 100);
+
+                const truePercentage = trueTotalClasses > 0 ? Math.round((trueClassesAttended / trueTotalClasses) * 100) : 0;
 
                 setAttendanceData(prev => ({
                     ...prev,
