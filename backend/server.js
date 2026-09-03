@@ -493,7 +493,7 @@ app.post('/api/users', async (req, res) => {
         res.json({ success: true, message: 'User created' });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ success: false, error: 'Internal Server Error' });
+        res.status(500).json({ success: false, error: error.message || 'Internal Server Error' });
     }
 });
 

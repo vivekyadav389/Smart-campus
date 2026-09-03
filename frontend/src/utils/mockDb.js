@@ -32,9 +32,9 @@ export const addUser = async (role, userData) => {
             body: JSON.stringify({ ...userData, role })
         });
         const data = await res.json();
-        return data.success;
-    } catch {
-        return false;
+        return data;
+    } catch (e) {
+        return { success: false, error: 'Network Error or Server Unreachable' };
     }
 };
 

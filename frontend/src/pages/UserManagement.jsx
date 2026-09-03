@@ -80,17 +80,17 @@ const UserManagement = () => {
         }
         const newUserData = { ...newUserForm, batch: batchString };
         // For teachers, department and branch are both collected directly in the form
-        const success = await addUser(
+        const response = await addUser(
             activeTab === 'students' ? 'student' : (activeTab === 'teachers' ? 'teacher' : 'admin'),
             newUserData
         );
-        if (success) {
+        if (response?.success) {
+            alert(`${activeTab === 'students' ? 'Student' : (activeTab === 'teachers' ? 'Teacher' : 'Admin')} added successfully!`);
             await loadUsers();
             setIsAddModalOpen(false);
             setNewUserForm({ name: '', email: '', password: '', id: '', branch: '', batchStart: '', batchEnd: '', teacherBatches: [{ start: '', end: '' }], department: '', mobile: '', profilePic: '' });
-            alert(`${activeTab === 'students' ? 'Student' : 'Teacher'} account created successfully!`);
         } else {
-            alert("Failed to create user. Please try again.");
+            alert(`Failed to create user: ${response?.error || 'Please try again.'}`);
         }
     };
 
