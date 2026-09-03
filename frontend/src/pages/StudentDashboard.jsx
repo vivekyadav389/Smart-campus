@@ -315,9 +315,22 @@ const StudentDashboard = () => {
                     }
                 }
 
-                // Total classes should be based on the calendar (up to today), or fallback to total weekdays in semester
+                
+                const pastHolidays = verifiedEvents.filter(e => {
+                    if (e.type !== 'Holiday') return false;
+                    const d = new Date(e.date);
+                    return d >= semStart && d <= calcEnd;
+                }).length;
+                
+                const pastExtraClasses = verifiedEvents.filter(e => {
+                    if (e.type !== 'Class') return false;
+                    const d = new Date(e.date);
+                    return d >= semStart && d <= calcEnd;
+                }).length;
 
-                const trueTotalClasses = pastClassEvents.length > 0 ? pastClassEvents.length : (totalWeekdays > 0 ? totalWeekdays : 1);
+                let trueTotalClasses = totalWeekdays - pastHolidays + pastExtraClasses;
+                if (trueTotalClasses < 1) trueTotalClasses = 1; // Prevent division by zero
+
                 const truePercentage = Math.round((trueClassesAttended / trueTotalClasses) * 100);
 
                 setAttendanceData(prev => ({
