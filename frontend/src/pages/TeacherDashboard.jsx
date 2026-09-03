@@ -1358,12 +1358,14 @@ const TeacherDashboard = () => {
                 </div>
             )}
             {isSemesterModalOpen && (
-                <div className="modal-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div className="modal-content animate-slide-up" style={{ width: '90%', maxWidth: '400px' }}>
-                        <div className="modal-header">
-                            <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Manage Semesters</h3>
-                            <button onClick={() => setIsSemesterModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X /></button>
-                        </div>
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+                    <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '400px', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+                        <button onClick={() => setIsSemesterModalOpen(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}>
+                            <X size={20} />
+                        </button>
+                        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem' }}>
+                            Manage Semesters
+                        </h2>
                         <div className="modal-body">
                             <form onSubmit={handleCreateSemester}>
                                 <div style={{ marginBottom: '1rem' }}>
