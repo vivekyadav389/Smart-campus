@@ -976,12 +976,9 @@ const TeacherDashboard = () => {
                                             style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--color-border)' }}
                                         >
                                             <option value="All">All Batches</option>
-                                            <option value="2021">Batch 2021</option>
-                                            <option value="2022">Batch 2022</option>
-                                            <option value="2023">Batch 2023</option>
-                                            <option value="2024">Batch 2024</option>
-                                            <option value="2025">Batch 2025</option>
-                                            <option value="2026">Batch 2026</option>
+                                            {uniqueBatches.filter(b => b !== 'All').map(batch => (
+                                                <option key={batch} value={batch}>Batch {batch}</option>
+                                            ))}
                                         </select>
                                     </div>
                                     <div>

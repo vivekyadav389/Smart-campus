@@ -828,7 +828,7 @@ app.get('/api/calendar', async (req, res) => {
 });
 
 app.post('/api/calendar', async (req, res) => {
-    const { events } = req.body;
+    const events = Array.isArray(req.body) ? req.body : (req.body.events || [req.body]);
     try {
         for (const evt of events) {
             await pool.query(
