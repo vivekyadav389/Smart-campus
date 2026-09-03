@@ -64,7 +64,7 @@ const TeacherDashboard = () => {
     const [isSemesterModalOpen, setIsSemesterModalOpen] = useState(false);
     const [activeSemesters, setActiveSemesters] = useState([]);
     const [isEditingSemester, setIsEditingSemester] = useState(false);
-    const [semesterForm, setSemesterForm] = useState({ id: null, batch: '', startDate: '', endDate: '' });
+    const [semesterForm, setSemesterForm] = useState({ id: null, batch: '', name: '', startDate: '', endDate: '' });
     const [semestersHistory, setSemestersHistory] = useState([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
@@ -211,11 +211,12 @@ const TeacherDashboard = () => {
         e.preventDefault();
         let success = false;
         if (semesterForm.id) {
-            success = await updateSemester(semesterForm.id, { start_date: semesterForm.startDate, end_date: semesterForm.endDate, batch: semesterForm.batch });
+            success = await updateSemester(semesterForm.id, { name: semesterForm.name, start_date: semesterForm.startDate, end_date: semesterForm.endDate, batch: semesterForm.batch });
         } else {
             success = await createSemester({
                 branch: user.branch,
                 batch: semesterForm.batch,
+                name: semesterForm.name,
                 startDate: semesterForm.startDate,
                 endDate: semesterForm.endDate
             });
@@ -223,7 +224,7 @@ const TeacherDashboard = () => {
         if (success) {
             alert('Semester created/updated successfully!');
             setIsSemesterModalOpen(false);
-            setSemesterForm({ id: null, batch: '', startDate: '', endDate: '' });
+            setSemesterForm({ id: null, batch: '', name: '', startDate: '', endDate: '' });
             loadSemesterHistory();
             loadActiveSemesters();
             setIsEditingSemester(false);
@@ -915,6 +916,7 @@ const TeacherDashboard = () => {
                                 <thead>
                                     <tr>
                                         <th>Batch</th>
+                                        <th>Name</th>
                                         <th>Start Date</th>
                                         <th>End Date</th>
                                         <th>Status</th>
@@ -924,9 +926,10 @@ const TeacherDashboard = () => {
                                     {semestersHistory.map(sem => (
                                         <tr key={sem.id}>
                                             <td>{sem.batch}</td>
-                                            <td>{new Date(sem.startdate).toLocaleDateString()}</td>
-                                            <td>{new Date(sem.enddate).toLocaleDateString()}</td>
-                                            <td><span className="badge badge-primary">{sem.status}</span></td>
+                                            <td>{sem.name || `Semester ${sem.start_date?.substring(0,4) || ''}`}</td>
+                                            <td>{new Date(sem.start_date || sem.startdate).toLocaleDateString()}</td>
+                                            <td>{sem.end_date ? new Date(sem.end_date || sem.enddate).toLocaleDateString() : '-'}</td>
+                                            <td><span className={`status-badge ${sem.state === 'Active' ? 'status-present' : 'status-absent'}`}>{sem.status}</span></td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -1511,6 +1514,16 @@ const TeacherDashboard = () => {
                                         </select>
                                     </div>
                                     <div style={{ marginBottom: '1rem' }}>
+                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Semester Name (Optional)</label>
+                                        <input
+                                            type="text"
+                                            className="input"
+                                            value={semesterForm.name}
+                                            onChange={(e) => setSemesterForm({ ...semesterForm, name: e.target.value })}
+                                            placeholder="e.g. Semester 2"
+                                        />
+                                    </div>
+                                    <div style={{ marginBottom: '1rem' }}>
                                         <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Semester Start Date</label>
                                         <input
                                             type="date"
@@ -1532,7 +1545,7 @@ const TeacherDashboard = () => {
                                         <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '0.25rem' }}>Setting this will mark any previous active semester for this batch as Completed.</p>
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={() => { setIsEditingSemester(false); setSemesterForm({ id: null, batch: '', startDate: '', endDate: '' }); }}>Cancel</button>
+                                        <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={() => { setIsEditingSemester(false); setSemesterForm({ id: null, batch: '', name: '', startDate: '', endDate: '' }); }}>Cancel</button>
                                         <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Save</button>
                                     </div>
                                 </form>
@@ -1554,14 +1567,14 @@ const TeacherDashboard = () => {
                                                 <div key={sem.id} style={{ border: '1px solid var(--color-border)', borderRadius: '0.5rem', padding: '1rem' }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                                                         <div>
-                                                            <h4 style={{ fontWeight: 600, fontSize: '1rem' }}>Batch {sem.batch}</h4>
+                                                            <h4 style={{ fontWeight: 600, fontSize: '1rem' }}>Batch {sem.batch} - {sem.name || 'Unnamed'}</h4>
                                                             <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>{st} to {en}</p>
                                                         </div>
                                                         <button 
                                                             className="btn btn-outline" 
                                                             style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
                                                             onClick={() => {
-                                                                setSemesterForm({ id: sem.id, batch: sem.batch, startDate: st, endDate: en });
+                                                                setSemesterForm({ id: sem.id, batch: sem.batch, name: sem.name || '', startDate: st, endDate: en });
                                                                 setIsEditingSemester(true);
                                                             }}
                                                         >

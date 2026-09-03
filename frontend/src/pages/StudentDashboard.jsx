@@ -817,7 +817,14 @@ const StudentDashboard = () => {
 
                         {/* Attendance Summary Widget */}
                         <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-                            <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1.5rem', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.75rem' }}>Attendance Overview</h3>
+                            <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1.5rem', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span>Attendance Overview</span>
+                                {activeSemester && (
+                                    <span style={{ fontSize: '0.875rem', fontWeight: 500, backgroundColor: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '0.25rem 0.75rem', borderRadius: '1rem' }}>
+                                        {activeSemester.name || `Semester ${activeSemester.start_date?.substring(0,4) || ''}`}
+                                    </span>
+                                )}
+                            </h3>
 
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2rem', flex: 1 }}>
 
@@ -1162,6 +1169,7 @@ const StudentDashboard = () => {
                             <table className="table">
                                 <thead>
                                     <tr>
+                                        <th>Semester Name</th>
                                         <th>Semester Date</th>
                                         <th>Status</th>
                                         <th>Total Classes</th>
@@ -1175,8 +1183,9 @@ const StudentDashboard = () => {
                                         // For now, this lists the semesters that are completed.
                                         return (
                                             <tr key={sem.id}>
+                                                <td>{sem.name || `Semester ${sem.startdate?.substring(0,4) || ''}`}</td>
                                                 <td>{new Date(sem.startdate).toLocaleDateString()} - {new Date(sem.enddate).toLocaleDateString()}</td>
-                                                <td><span className="badge badge-primary">{sem.status}</span></td>
+                                                <td><span className={`status-badge ${sem.state === 'Active' ? 'status-present' : 'status-absent'}`}>{sem.status}</span></td>
                                                 <td>--</td>
                                                 <td>--</td>
                                                 <td>--</td>

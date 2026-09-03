@@ -779,15 +779,16 @@ app.get('/api/semesters', async (req, res) => {
 });
 
 app.post('/api/semesters', async (req, res) => {
-    const { branch, batch, startDate, endDate } = req.body;
+    const { branch, batch, startDate, endDate, name } = req.body;
     try {
         await pool.query(
             'UPDATE semesters SET state = $1 WHERE branch = $2 AND batch = $3 AND state = $4',
             ['Completed', branch, batch, 'Active']
         );
+        const finalName = name || `Semester ${startDate.substring(0,4)}`;
         await pool.query(
             'INSERT INTO semesters (name, branch, batch, start_date, end_date, state, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-            [`Semester ${startDate.substring(0,4)}`, branch, batch, startDate, endDate, 'Active', 'Approved']
+            [finalName, branch, batch, startDate, endDate, 'Active', 'Approved']
         );
         res.json({ success: true });
     } catch (error) {
