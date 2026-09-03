@@ -294,42 +294,37 @@ const StudentDashboard = () => {
                     return d <= new Date() && d.getDay() !== 0 && d.getDay() !== 6;
                 });
 
-                // Only count 'Present' logs that do NOT fall on a weekend AND are within active semester
-                const trueClassesAttended = logs.filter(l => {
-                    if (l.status !== 'Present') return false;
-                    const d = new Date(l.date);
-                    return d >= semStart && d <= semEnd && d.getDay() !== 0 && d.getDay() !== 6;
-                }).length;
-
-                // Fallback: Count weekdays from start of semester to today (or end of semester)
-                let totalWeekdays = 0;
+                
+                // Re-calculate accurately by iterating day by day (matching teacher's exact logic)
                 const now = new Date();
                 let calcEnd = semEnd < now ? semEnd : now;
-                
-                // Ensure calcEnd doesn't go beyond today for calculating "classes happened so far"
                 if (calcEnd > now) calcEnd = now;
+
+                let trueTotalClasses = 0;
+                let trueClassesAttended = 0;
 
                 if (semStart <= calcEnd) {
                     for (let d = new Date(semStart); d <= calcEnd; d.setDate(d.getDate() + 1)) {
-                        if (d.getDay() !== 0 && d.getDay() !== 6) totalWeekdays++;
+                        const localDateStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                        
+                        const isHoliday = verifiedEvents.some(e => e.type === 'Holiday' && e.date.startsWith(localDateStr));
+                        const isExtraClass = verifiedEvents.some(e => e.type === 'Class' && e.date.startsWith(localDateStr));
+                        
+                        const isClassDay = isExtraClass || (!isWeekend && !isHoliday);
+                        
+                        if (isClassDay) {
+                            trueTotalClasses++;
+                            const log = logs.find(l => l.date.startsWith(localDateStr) && l.status === 'Present');
+                            if (log) {
+                                trueClassesAttended++;
+                            }
+                        }
                     }
                 }
-
                 
-                const pastHolidays = verifiedEvents.filter(e => {
-                    if (e.type !== 'Holiday') return false;
-                    const d = new Date(e.date);
-                    return d >= semStart && d <= calcEnd;
-                }).length;
-                
-                const pastExtraClasses = verifiedEvents.filter(e => {
-                    if (e.type !== 'Class') return false;
-                    const d = new Date(e.date);
-                    return d >= semStart && d <= calcEnd;
-                }).length;
-
-                let trueTotalClasses = totalWeekdays - pastHolidays + pastExtraClasses;
                 if (trueTotalClasses < 1) trueTotalClasses = 1; // Prevent division by zero
+
 
                 const truePercentage = Math.round((trueClassesAttended / trueTotalClasses) * 100);
 
