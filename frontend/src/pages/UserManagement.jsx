@@ -22,6 +22,10 @@ const UserManagement = () => {
         try {
             const res = await fetch(`${API_BASE_URL}/api/users`);
             const data = await res.json();
+            if (!data.success) {
+                console.error("Failed to load users:", data.error);
+                alert(`Error loading users: ${data.error}`);
+            }
             const allUsers = data.users || [];
             setUsers({
                 students: allUsers.filter(u => u.role === 'student'),
