@@ -54,12 +54,13 @@ export const getUsers = async (requesterId = null) => {
     }
 };
 
-export const getSemesters = async (branch, batch, status) => {
+export const getSemesters = async (branch, batch, status, state) => {
     try {
         let url = `${API_BASE_URL}/api/semesters?`;
         if (branch) url += `branch=${encodeURIComponent(branch)}&`;
         if (batch) url += `batch=${encodeURIComponent(batch)}&`;
         if (status) url += `status=${encodeURIComponent(status)}&`;
+        if (state) url += `state=${encodeURIComponent(state)}&`;
         const res = await fetch(url);
         const data = await res.json();
         return data.semesters || [];
@@ -80,6 +81,20 @@ export const createSemester = async (semesterData) => {
         return data.success;
     } catch (err) {
         console.error(err);
+        return false;
+    }
+};
+
+export const updateSemester = async (id, payload) => {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/semesters/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        return data.success;
+    } catch (err) {
         return false;
     }
 };
