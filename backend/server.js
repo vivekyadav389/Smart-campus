@@ -764,10 +764,10 @@ app.get('/api/semesters', async (req, res) => {
             FROM semesters s WHERE 1=1
         `;
         let params = [];
-        if (branch && branch !== 'All') { params.push(branch); query += ` AND s.branch = ${params.length}`; }
-        if (batch && batch !== 'All') { params.push(batch); query += ` AND s.batch = ${params.length}`; }
-        if (status) { params.push(status); query += ` AND s.status = ${params.length}`; }
-        if (state) { params.push(state); query += ` AND s.state = ${params.length}`; }
+        if (branch && branch !== 'All') { params.push(branch); query += ` AND s.branch = $${params.length}`; }
+        if (batch && batch !== 'All') { params.push(batch); query += ` AND s.batch = $${params.length}`; }
+        if (status) { params.push(status); query += ` AND s.status = $${params.length}`; }
+        if (state) { params.push(state); query += ` AND s.state = $${params.length}`; }
         
         query += ' ORDER BY s.created_at DESC';
         
