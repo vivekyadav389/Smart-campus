@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     department VARCHAR(100),
     rollNo VARCHAR(50),
     branch VARCHAR(100),
-    batch VARCHAR(20),
+    batch TEXT,
     registeredDeviceId VARCHAR(255),
     totalClasses INT DEFAULT 0,
     classesAttended INT DEFAULT 0,
@@ -58,7 +58,19 @@ CREATE TABLE IF NOT EXISTS calendar_events (
     status VARCHAR(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Verified')),
     teacherId VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL,
     batch VARCHAR(50) DEFAULT 'All',
-    UNIQUE (date, batch)
+    branch VARCHAR(100) DEFAULT 'All',
+    UNIQUE (date, branch, batch)
+);
+
+-- Table: semesters
+CREATE TABLE IF NOT EXISTS semesters (
+    id SERIAL PRIMARY KEY,
+    branch VARCHAR(100) NOT NULL,
+    batch VARCHAR(50) NOT NULL,
+    teacherId VARCHAR(50) REFERENCES users(id) ON DELETE CASCADE,
+    startDate DATE NOT NULL,
+    endDate DATE NOT NULL,
+    status VARCHAR(20) DEFAULT 'Active' CHECK (status IN ('Active', 'Completed'))
 );
 
 -- Insert Default Admin

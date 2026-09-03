@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Users, Filter, CheckCircle, XCircle, Search, Download, Clock, CalendarDays, Calendar as CalendarIcon, Edit3, Trash2, X } from 'lucide-react';
-import { API_BASE_URL, getTodayAttendance, getAttendanceByDate, getAttendanceRange, getCalendarEvents, saveCalendarEvent, deleteCalendarEvent, markManualAttendance } from '../utils/mockDb';
+import { API_BASE_URL, getTodayAttendance, getAttendanceByDate, getAttendanceRange, getCalendarEvents, saveCalendarEvent, deleteCalendarEvent, markManualAttendance, createSemester, getSemesters, updateSemesterStatus, getSemesterHistory } from '../utils/mockDb';
 
 const getLocalYMD = (dateObj = new Date()) => {
     return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
@@ -52,11 +52,18 @@ const TeacherDashboard = () => {
     const [isEventModalOpen, setIsEventModalOpen] = useState(false);
     const [selectedDates, setSelectedDates] = useState([]);
     const [eventForm, setEventForm] = useState({ type: 'Class', reason: '', batch: 'All' });
+    const [calendarFilterBatch, setCalendarFilterBatch] = useState('All');
 
     // Manual Attendance States
     const [isManualModalOpen, setIsManualModalOpen] = useState(false);
     const [manualForm, setManualForm] = useState({ studentId: '', date: getLocalYMD(), status: 'Present' });
     const [manualSearchQuery, setManualSearchQuery] = useState('');
+
+    // Semester States
+    const [isSemesterModalOpen, setIsSemesterModalOpen] = useState(false);
+    const [semesterForm, setSemesterForm] = useState({ batch: '', startDate: '', endDate: '' });
+    const [semestersHistory, setSemestersHistory] = useState([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
     // Export Modal States
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -165,6 +172,13 @@ const TeacherDashboard = () => {
             fetchDetailedLogs();
         }
     }, [activeTab, fetchDetailedLogs]);
+
+    const loadSemesterHistory = async () => {
+        setIsLoadingHistory(true);
+        const data = await getSemesterHistory(user.branch, 'All'); // Teacher can fetch all completed semesters for their branch
+        setSemestersHistory(data);
+        setIsLoadingHistory(false);
+    };
 
     const handleManualApprove = async (studentId) => {
         if (window.confirm("Approve attendance for this student manually?")) {
@@ -343,7 +357,8 @@ const TeacherDashboard = () => {
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
         const dbDate = `${year}-${month}-${day}`;
-        return dbDate === dateLocalStr;
+        const matchBatch = calendarFilterBatch === 'All' || e.batch === 'All' || e.batch === calendarFilterBatch;
+        return dbDate === dateLocalStr && matchBatch;
     });
 
     const getEventForDate = (dateLocalStr) => getEventsForDate(dateLocalStr)[0];
@@ -369,12 +384,12 @@ const TeacherDashboard = () => {
         if (selectedDates.length === 1) {
             const existingEvent = getEventForDate(selectedDates[0]);
             if (existingEvent) {
-                setEventForm({ type: existingEvent.type, reason: existingEvent.reason || '', batch: existingEvent.batch || 'All' });
+                setEventForm({ type: existingEvent.type, reason: existingEvent.reason || '', batch: existingEvent.batch || calendarFilterBatch });
             } else {
-                setEventForm({ type: 'Class', reason: '', batch: 'All' });
+                setEventForm({ type: 'Class', reason: '', batch: calendarFilterBatch });
             }
         } else {
-            setEventForm({ type: 'Class', reason: '', batch: 'All' });
+            setEventForm({ type: 'Class', reason: '', batch: calendarFilterBatch });
         }
         setIsEventModalOpen(true);
     };
@@ -398,7 +413,8 @@ const TeacherDashboard = () => {
             type: eventForm.type,
             reason: eventForm.reason,
             teacherId: user.id,
-            batch: eventForm.batch
+            batch: eventForm.batch,
+            branch: user.branch || 'All'
         }));
 
         const result = await saveCalendarEvent(eventsPayload);
@@ -568,6 +584,23 @@ const TeacherDashboard = () => {
                 >
                     Activity Log
                 </button>
+                <button
+                    onClick={() => { setActiveTab('semesterHistory'); loadSemesterHistory(); }}
+                    style={{
+                        padding: '1rem 0',
+                        fontSize: '1rem',
+                        fontWeight: activeTab === 'semesterHistory' ? 600 : 500,
+                        color: activeTab === 'semesterHistory' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                        borderBottom: activeTab === 'semesterHistory' ? '2px solid var(--color-primary)' : '2px solid transparent',
+                        background: 'none',
+                        borderTop: 'none',
+                        borderLeft: 'none',
+                        borderRight: 'none',
+                        cursor: 'pointer'
+                    }}
+                >
+                    Semester History
+                </button>
             </div>
 
             {(activeTab === 'attendance' || activeTab === 'history') && (
@@ -723,13 +756,60 @@ const TeacherDashboard = () => {
                         </div>
                     </div>
                 </div>
-            )}            {activeTab === 'calendar' && (
+            )}
+            
+            {activeTab === 'semesterHistory' && (
+                <div className="animate-fade-in card">
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem' }}>Semester History</h3>
+                    {isLoadingHistory ? (
+                        <p>Loading history...</p>
+                    ) : semestersHistory.length === 0 ? (
+                        <p>No completed semesters found.</p>
+                    ) : (
+                        <div style={{ overflowX: 'auto' }}>
+                            <table className="table">
+                                <thead>
+                                    <tr>
+                                        <th>Batch</th>
+                                        <th>Start Date</th>
+                                        <th>End Date</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {semestersHistory.map(sem => (
+                                        <tr key={sem.id}>
+                                            <td>{sem.batch}</td>
+                                            <td>{new Date(sem.startdate).toLocaleDateString()}</td>
+                                            <td>{new Date(sem.enddate).toLocaleDateString()}</td>
+                                            <td><span className="badge badge-primary">{sem.status}</span></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'calendar' && (
                 <div className="animate-fade-in card">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                         <h3 style={{ fontSize: '1.25rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <CalendarDays className="text-primary" /> Month Schedule
                         </h3>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            <select
+                                className="input"
+                                style={{ padding: '0.25rem 0.5rem', height: 'auto' }}
+                                value={calendarFilterBatch}
+                                onChange={(e) => setCalendarFilterBatch(e.target.value)}
+                            >
+                                {uniqueBatches.map(batch => (
+                                    <option key={`cal-${batch}`} value={batch}>{batch === 'All' ? 'All Batches' : `Batch ${batch}`}</option>
+                                ))}
+                            </select>
+                            <button className="btn btn-primary" onClick={() => setIsSemesterModalOpen(true)}>Manage Semesters</button>
                             <button className="btn btn-outline" onClick={() => setCurrentDate(new Date(year, month - 1, 1))}>&lt; Prev</button>
                             <span style={{ fontWeight: 600, fontSize: '1.125rem' }}>{monthName} {year}</span>
                             <button className="btn btn-outline" onClick={() => setCurrentDate(new Date(year, month + 1, 1))}>Next &gt;</button>
@@ -1257,6 +1337,56 @@ const TeacherDashboard = () => {
                                     {isExporting ? "Processing..." : "Download CSV"}
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {isSemesterModalOpen && (
+                <div className="modal-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="modal-content animate-slide-up" style={{ width: '90%', maxWidth: '400px' }}>
+                        <div className="modal-header">
+                            <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Manage Semesters</h3>
+                            <button onClick={() => setIsSemesterModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X /></button>
+                        </div>
+                        <div className="modal-body">
+                            <form onSubmit={handleCreateSemester}>
+                                <div style={{ marginBottom: '1rem' }}>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Select Batch</label>
+                                    <select
+                                        className="input"
+                                        value={semesterForm.batch}
+                                        onChange={(e) => setSemesterForm({ ...semesterForm, batch: e.target.value })}
+                                        required
+                                    >
+                                        <option value="">Select Batch</option>
+                                        {uniqueBatches.filter(b => b !== 'All').map(batch => (
+                                            <option key={batch} value={batch}>Batch {batch}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div style={{ marginBottom: '1rem' }}>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Semester Start Date</label>
+                                    <input
+                                        type="date"
+                                        className="input"
+                                        value={semesterForm.startDate}
+                                        onChange={(e) => setSemesterForm({ ...semesterForm, startDate: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                                <div style={{ marginBottom: '1.5rem' }}>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Semester End Date</label>
+                                    <input
+                                        type="date"
+                                        className="input"
+                                        value={semesterForm.endDate}
+                                        onChange={(e) => setSemesterForm({ ...semesterForm, endDate: e.target.value })}
+                                        required
+                                    />
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '0.25rem' }}>Setting this will mark any previous active semester for this batch as Completed.</p>
+                                </div>
+                                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Create / Update Semester</button>
+                            </form>
                         </div>
                     </div>
                 </div>

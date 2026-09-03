@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { User, MapPin, Clock, Calendar, CheckCircle, XCircle, ChevronRight, LogOut, Navigation, CalendarDays, Coffee } from 'lucide-react';
-import { getCollegeTiming, getGeofence, markAttendance, getAttendanceLogs, getCalendarEvents } from '../utils/mockDb';
+import { getCollegeTiming, getGeofence, markAttendance, getAttendanceLogs, getCalendarEvents, getSemesters, getSemesterHistory, getUsers } from '../utils/mockDb';
 import { MapContainer, TileLayer, Polygon, Popup, Marker, Circle, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -98,6 +98,17 @@ const StudentDashboard = () => {
     const [userAccuracy, setUserAccuracy] = useState(0);
     const [isManualRecenter, setIsManualRecenter] = useState(false);
     const [locationError, setLocationError] = useState(null);
+
+    // Semester States
+    const [activeSemester, setActiveSemester] = useState(null);
+    const [semesterStatusMsg, setSemesterStatusMsg] = useState('');
+    const [semestersHistory, setSemestersHistory] = useState([]);
+    const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+
+    // Dynamic Attendance Stats
+    const [dynamicTotalClasses, setDynamicTotalClasses] = useState(0);
+    const [dynamicClassesAttended, setDynamicClassesAttended] = useState(0);
+
     const [isSessionModalOpen, setIsSessionModalOpen] = useState(false);
     const [selectedSessions, setSelectedSessions] = useState([]);
 
@@ -153,14 +164,35 @@ const StudentDashboard = () => {
             }
 
             if (user?.id) {
-                const [logs, verifiedEvents, timing] = await Promise.all([
+                const [logs, verifiedEvents, timing, activeSems, usersData] = await Promise.all([
                     getAttendanceLogs(user.id),
-                    getCalendarEvents('Verified'),
-                    getCollegeTiming()
+                    getCalendarEvents('Verified', user.batch, user.branch),
+                    getCollegeTiming(),
+                    getSemesters(user.branch, user.batch, 'Active'),
+                    getUsers()
                 ]);
 
                 setCalendarEvents(verifiedEvents);
                 setTimingConfig(timing);
+                
+                // Fetch Semester History
+                getSemesterHistory(user.branch, user.batch).then(data => setSemestersHistory(data));
+                
+                // Semester Logic
+                const currentStudentUser = usersData.find(u => u.id === user.id);
+                if (currentStudentUser) {
+                    setDynamicTotalClasses(currentStudentUser.totalClasses || 0);
+                    setDynamicClassesAttended(currentStudentUser.classesAttended || 0);
+                }
+
+                if (activeSems && activeSems.length > 0) {
+                    setActiveSemester(activeSems[0]);
+                    setSemesterStatusMsg('');
+                } else {
+                    setActiveSemester(null);
+                    // Check if there is a future active semester? (backend handles 'Active' status for future too)
+                    setSemesterStatusMsg('Classes starting soon');
+                }
 
                 // Generate chronological logs for the last 30 days
                 const formattedLogs = [];
@@ -545,15 +577,20 @@ const StudentDashboard = () => {
                         sessions: sessions
                     };
 
+                    const truePercentage = currentStudentUser.totalClasses > 0 ? Math.round((currentStudentUser.classesAttended / currentStudentUser.totalClasses) * 100) : 0;
+                    
+                    setAttendanceData(prev => ({
+                        ...prev,
+                        totalClasses: currentStudentUser.totalClasses || 0,
+                        classesAttended: currentStudentUser.classesAttended || 0,
+                        percentage: truePercentage > 100 ? 100 : truePercentage,
+                        recentLogs: [formattedToday, ...prev.recentLogs.filter(l => l.date !== formattedToday.date)]
+                    }));
+
                     // Stop tracking if student has explicitly exited campus
                     if (finalStatus === 'Left Campus' || (finalStatus === 'Present' && timeOut !== null) || (finalStatus === 'Present' && isPastEndTime)) {
                         setTrackingFinished(true);
                     }
-
-                    setAttendanceData(prev => ({
-                        ...prev,
-                        recentLogs: [formattedToday, ...prev.recentLogs.filter(l => l.date !== formattedToday.date)]
-                    }));
                 }
             }
         };
@@ -665,6 +702,18 @@ const StudentDashboard = () => {
                     }}
                 >
                     Academic Calendar
+                </button>
+                <button
+                    onClick={() => setActiveTab('history')}
+                    style={{
+                        padding: '0.5rem 1rem',
+                        fontWeight: 500,
+                        color: activeTab === 'history' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                        borderBottom: activeTab === 'history' ? '2px solid var(--color-primary)' : '2px solid transparent',
+                        marginBottom: '-0.5rem'
+                    }}
+                >
+                    Semester History
                 </button>
             </div>
 
@@ -1062,6 +1111,46 @@ const StudentDashboard = () => {
                                     ))}
                                 </div>
                             </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'history' && (
+                <div className="animate-fade-in card">
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem' }}>Semester History</h3>
+                    {isHistoryLoading ? (
+                        <p>Loading history...</p>
+                    ) : semestersHistory.length === 0 ? (
+                        <p>No completed semesters found.</p>
+                    ) : (
+                        <div style={{ overflowX: 'auto' }}>
+                            <table className="table">
+                                <thead>
+                                    <tr>
+                                        <th>Semester Date</th>
+                                        <th>Status</th>
+                                        <th>Total Classes</th>
+                                        <th>Classes Attended</th>
+                                        <th>Attendance %</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {semestersHistory.map(sem => {
+                                        // A simple placeholder representation; in a real scenario, you'd fetch per-student stats for that semester's timeframe.
+                                        // For now, this lists the semesters that are completed.
+                                        return (
+                                            <tr key={sem.id}>
+                                                <td>{new Date(sem.startdate).toLocaleDateString()} - {new Date(sem.enddate).toLocaleDateString()}</td>
+                                                <td><span className="badge badge-primary">{sem.status}</span></td>
+                                                <td>--</td>
+                                                <td>--</td>
+                                                <td>--</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         </div>
                     )}
                 </div>

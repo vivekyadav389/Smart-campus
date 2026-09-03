@@ -38,7 +38,7 @@ const UserManagement = () => {
     useEffect(() => { loadUsers(); }, []);
 
     const [newUserForm, setNewUserForm] = useState({
-        name: '', email: '', password: '', id: '', branch: '', batch: '', department: '', mobile: ''
+        name: '', email: '', password: '', id: '', branch: '', batchStart: '', batchEnd: '', teacherBatches: [{ start: '', end: '' }], department: '', mobile: ''
     });
 
     const filteredUsers = users[activeTab].filter(user =>
@@ -69,7 +69,16 @@ const UserManagement = () => {
     // ──────────────── Add User ────────────────
     const handleAddUser = async (e) => {
         e.preventDefault();
-        const newUserData = { ...newUserForm };
+        let batchString = '';
+        if (activeTab === 'teachers' && newUserForm.teacherBatches) {
+            batchString = newUserForm.teacherBatches
+                .filter(b => b.start && b.end)
+                .map(b => `${b.start}-${b.end}`)
+                .join(',');
+        } else {
+            batchString = (newUserForm.batchStart && newUserForm.batchEnd) ? `${newUserForm.batchStart}-${newUserForm.batchEnd}` : '';
+        }
+        const newUserData = { ...newUserForm, batch: batchString };
         // For teachers, department and branch are both collected directly in the form
         const success = await addUser(
             activeTab === 'students' ? 'student' : (activeTab === 'teachers' ? 'teacher' : 'admin'),
@@ -78,7 +87,7 @@ const UserManagement = () => {
         if (success) {
             await loadUsers();
             setIsAddModalOpen(false);
-            setNewUserForm({ name: '', email: '', password: '', id: '', branch: '', batch: '', department: '', mobile: '', profilePic: '' });
+            setNewUserForm({ name: '', email: '', password: '', id: '', branch: '', batchStart: '', batchEnd: '', teacherBatches: [{ start: '', end: '' }], department: '', mobile: '', profilePic: '' });
             alert(`${activeTab === 'students' ? 'Student' : 'Teacher'} account created successfully!`);
         } else {
             alert("Failed to create user. Please try again.");
@@ -87,7 +96,22 @@ const UserManagement = () => {
 
     // ──────────────── Edit User ────────────────
     const openEdit = (user) => {
-        setEditingUser({ ...user, mobile: user.mobile || '' });
+        let batchStart = '';
+        let batchEnd = '';
+        let teacherBatches = [{ start: '', end: '' }];
+
+        if (user.role === 'teacher' && user.batch) {
+            teacherBatches = user.batch.split(',').map(b => {
+                const [start, end] = b.split('-');
+                return { start: start || '', end: end || '' };
+            });
+        } else if (user.batch && user.batch.includes('-')) {
+            [batchStart, batchEnd] = user.batch.split('-');
+        } else if (user.batch) {
+            batchStart = user.batch;
+        }
+
+        setEditingUser({ ...user, mobile: user.mobile || '', batchStart, batchEnd, teacherBatches });
         setEditPasswordVisible(false);
         setIsEditModalOpen(true);
     };
@@ -96,6 +120,16 @@ const UserManagement = () => {
         e.preventDefault();
         setIsSaving(true);
         try {
+            let batchString = '';
+            if (editingUser.role === 'teacher' && editingUser.teacherBatches) {
+                batchString = editingUser.teacherBatches
+                    .filter(b => b.start && b.end)
+                    .map(b => `${b.start}-${b.end}`)
+                    .join(',');
+            } else {
+                batchString = (editingUser.batchStart && editingUser.batchEnd) ? `${editingUser.batchStart}-${editingUser.batchEnd}` : (editingUser.batch || null);
+            }
+
             const res = await fetch(`${API_BASE_URL}/api/users/${editingUser.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -104,7 +138,7 @@ const UserManagement = () => {
                     email: editingUser.email,
                     password: editingUser.password,
                     branch: editingUser.branch || null,
-                    batch: editingUser.batch || null,
+                    batch: batchString,
                     department: editingUser.department || null,
                     rollNo: editingUser.rollNo || null,
                     mobile: editingUser.mobile || null,
@@ -376,27 +410,66 @@ const UserManagement = () => {
 
                             {/* Branch / Department + Batch */}
                             {(editingUser.role === 'student' || editingUser.role === 'teacher') && (
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                    <div>
-                                        <label style={labelStyle}>Branch</label>
-                                        <select value={editingUser.branch || ''} onChange={e => setEditingUser({ ...editingUser, branch: e.target.value })} style={{ ...inputStyle }}>
-                                            <option value="">Select Branch</option>
-                                            <option value="Computer Science">Computer Science</option>
-                                            <option value="Information Technology">Information Technology</option>
-                                            <option value="Electronics">Electronics</option>
-                                            <option value="Mechanical">Mechanical</option>
-                                            <option value="Civil">Civil</option>
-                                        </select>
-                                    </div>
-                                    {editingUser.role === 'student' ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: editingUser.role === 'teacher' ? '1fr 1fr' : '1fr', gap: '1rem' }}>
                                         <div>
-                                            <label style={labelStyle}>Batch (Year)</label>
-                                            <input type="text" placeholder="e.g. 2024" value={editingUser.batch || ''} onChange={e => setEditingUser({ ...editingUser, batch: e.target.value })} style={inputStyle} />
+                                            <label style={labelStyle}>Branch</label>
+                                            <select value={editingUser.branch || ''} onChange={e => setEditingUser({ ...editingUser, branch: e.target.value })} style={{ ...inputStyle }}>
+                                                <option value="">Select Branch</option>
+                                                <option value="Computer Science">Computer Science</option>
+                                                <option value="Information Technology">Information Technology</option>
+                                                <option value="Electronics">Electronics</option>
+                                                <option value="Mechanical">Mechanical</option>
+                                                <option value="Civil">Civil</option>
+                                            </select>
+                                        </div>
+                                        {editingUser.role === 'teacher' && (
+                                            <div>
+                                                <label style={labelStyle}>Department</label>
+                                                <input type="text" value={editingUser.department || ''} onChange={e => setEditingUser({ ...editingUser, department: e.target.value })} style={inputStyle} />
+                                            </div>
+                                        )}
+                                    </div>
+                                    {editingUser.role === 'teacher' ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                            <label style={labelStyle}>Batches</label>
+                                            {editingUser.teacherBatches && editingUser.teacherBatches.map((b, idx) => (
+                                                <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                                    <input required type="text" placeholder="Start (e.g. 2024)" value={b.start} onChange={e => {
+                                                        const newBatches = [...editingUser.teacherBatches];
+                                                        newBatches[idx].start = e.target.value;
+                                                        setEditingUser({ ...editingUser, teacherBatches: newBatches });
+                                                    }} style={{ ...inputStyle, flex: 1 }} />
+                                                    <span style={{ color: 'var(--color-text-secondary)' }}>-</span>
+                                                    <input required type="text" placeholder="End (e.g. 2028)" value={b.end} onChange={e => {
+                                                        const newBatches = [...editingUser.teacherBatches];
+                                                        newBatches[idx].end = e.target.value;
+                                                        setEditingUser({ ...editingUser, teacherBatches: newBatches });
+                                                    }} style={{ ...inputStyle, flex: 1 }} />
+                                                    {editingUser.teacherBatches.length > 1 && (
+                                                        <button type="button" onClick={() => {
+                                                            const newBatches = editingUser.teacherBatches.filter((_, i) => i !== idx);
+                                                            setEditingUser({ ...editingUser, teacherBatches: newBatches });
+                                                        }} style={{ color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem' }}><X size={16} /></button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            <button type="button" onClick={() => {
+                                                setEditingUser({ ...editingUser, teacherBatches: [...editingUser.teacherBatches, { start: '', end: '' }] });
+                                            }} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', width: 'fit-content', marginTop: '0.25rem' }}>
+                                                <Plus size={14} /> Add Another Batch
+                                            </button>
                                         </div>
                                     ) : (
-                                        <div>
-                                            <label style={labelStyle}>Department</label>
-                                            <input type="text" value={editingUser.department || ''} onChange={e => setEditingUser({ ...editingUser, department: e.target.value })} style={inputStyle} />
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                            <div>
+                                                <label style={labelStyle}>Batch Start Year</label>
+                                                <input type="text" placeholder="e.g. 2024" value={editingUser.batchStart || ''} onChange={e => setEditingUser({ ...editingUser, batchStart: e.target.value })} style={inputStyle} />
+                                            </div>
+                                            <div>
+                                                <label style={labelStyle}>Batch End Year</label>
+                                                <input type="text" placeholder="e.g. 2028" value={editingUser.batchEnd || ''} onChange={e => setEditingUser({ ...editingUser, batchEnd: e.target.value })} style={inputStyle} />
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -493,30 +566,68 @@ const UserManagement = () => {
                                     <input required type="text" value={newUserForm.rollNo} onChange={e => setNewUserForm({ ...newUserForm, rollNo: e.target.value, id: e.target.value })} style={inputStyle} />
                                 </div>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: (activeTab === 'students' || activeTab === 'teachers') ? '1fr 1fr' : '1fr', gap: '1rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                                 {(activeTab === 'students' || activeTab === 'teachers') && (
-                                    <div>
-                                        <label style={labelStyle}>Branch</label>
-                                        <select required value={newUserForm.branch} onChange={e => setNewUserForm({ ...newUserForm, branch: e.target.value })} style={inputStyle}>
-                                            <option value="" disabled>Select Branch</option>
-                                            <option value="Computer Science">Computer Science</option>
-                                            <option value="Information Technology">Information Technology</option>
-                                            <option value="Electronics">Electronics</option>
-                                            <option value="Mechanical">Mechanical</option>
-                                            <option value="Civil">Civil</option>
-                                        </select>
+                                    <div style={{ display: 'grid', gridTemplateColumns: activeTab === 'teachers' ? '1fr 1fr' : '1fr', gap: '1rem' }}>
+                                        <div>
+                                            <label style={labelStyle}>Branch</label>
+                                            <select required value={newUserForm.branch} onChange={e => setNewUserForm({ ...newUserForm, branch: e.target.value })} style={inputStyle}>
+                                                <option value="" disabled>Select Branch</option>
+                                                <option value="Computer Science">Computer Science</option>
+                                                <option value="Information Technology">Information Technology</option>
+                                                <option value="Electronics">Electronics</option>
+                                                <option value="Mechanical">Mechanical</option>
+                                                <option value="Civil">Civil</option>
+                                            </select>
+                                        </div>
+                                        {activeTab === 'teachers' && (
+                                            <div>
+                                                <label style={labelStyle}>Department</label>
+                                                <input required type="text" value={newUserForm.department} onChange={e => setNewUserForm({ ...newUserForm, department: e.target.value })} style={inputStyle} />
+                                            </div>
+                                        )}
                                     </div>
                                 )}
-                                {activeTab === 'students' && (
-                                    <div>
-                                        <label style={labelStyle}>Batch (Year)</label>
-                                        <input required type="text" placeholder="e.g. 2024" value={newUserForm.batch} onChange={e => setNewUserForm({ ...newUserForm, batch: e.target.value })} style={inputStyle} />
+                                {activeTab === 'teachers' ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        <label style={labelStyle}>Batches</label>
+                                        {newUserForm.teacherBatches.map((b, idx) => (
+                                            <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                                <input required type="text" placeholder="Start (e.g. 2024)" value={b.start} onChange={e => {
+                                                    const newBatches = [...newUserForm.teacherBatches];
+                                                    newBatches[idx].start = e.target.value;
+                                                    setNewUserForm({ ...newUserForm, teacherBatches: newBatches });
+                                                }} style={{ ...inputStyle, flex: 1 }} />
+                                                <span style={{ color: 'var(--color-text-secondary)' }}>-</span>
+                                                <input required type="text" placeholder="End (e.g. 2028)" value={b.end} onChange={e => {
+                                                    const newBatches = [...newUserForm.teacherBatches];
+                                                    newBatches[idx].end = e.target.value;
+                                                    setNewUserForm({ ...newUserForm, teacherBatches: newBatches });
+                                                }} style={{ ...inputStyle, flex: 1 }} />
+                                                {newUserForm.teacherBatches.length > 1 && (
+                                                    <button type="button" onClick={() => {
+                                                        const newBatches = newUserForm.teacherBatches.filter((_, i) => i !== idx);
+                                                        setNewUserForm({ ...newUserForm, teacherBatches: newBatches });
+                                                    }} style={{ color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem' }}><X size={16} /></button>
+                                                )}
+                                            </div>
+                                        ))}
+                                        <button type="button" onClick={() => {
+                                            setNewUserForm({ ...newUserForm, teacherBatches: [...newUserForm.teacherBatches, { start: '', end: '' }] });
+                                        }} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', width: 'fit-content', marginTop: '0.25rem' }}>
+                                            <Plus size={14} /> Add Another Batch
+                                        </button>
                                     </div>
-                                )}
-                                {activeTab === 'teachers' && (
-                                    <div>
-                                        <label style={labelStyle}>Department</label>
-                                        <input required type="text" value={newUserForm.department} onChange={e => setNewUserForm({ ...newUserForm, department: e.target.value })} style={inputStyle} />
+                                ) : (
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                        <div>
+                                            <label style={labelStyle}>Batch Start Year</label>
+                                            <input required type="text" placeholder="e.g. 2024" value={newUserForm.batchStart || ''} onChange={e => setNewUserForm({ ...newUserForm, batchStart: e.target.value })} style={inputStyle} />
+                                        </div>
+                                        <div>
+                                            <label style={labelStyle}>Batch End Year</label>
+                                            <input required type="text" placeholder="e.g. 2028" value={newUserForm.batchEnd || ''} onChange={e => setNewUserForm({ ...newUserForm, batchEnd: e.target.value })} style={inputStyle} />
+                                        </div>
                                     </div>
                                 )}
                             </div>

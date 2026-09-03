@@ -245,7 +245,7 @@ app.get('/api/auth/verify-device/:userId', async (req, res) => {
 app.get('/api/device-requests', async (req, res) => {
     try {
         const { rows: requests } = await pool.query(`
-            SELECT dr.*, u.name as studentName 
+            SELECT dr.*, u.name as "studentName", u.rollno as "rollNo" 
             FROM device_requests dr 
             JOIN users u ON dr.studentId = u.id 
             WHERE dr.status = 'pending'
@@ -438,8 +438,15 @@ app.get('/api/users', async (req, res) => {
     try {
         const { requesterId } = req.query;
         let queryStr = `
-            SELECT u.id, u.email, u.password, u.name, u.role, u.department, u.rollno AS "rollNo", u.branch, u.batch, u.registereddeviceid AS "registeredDeviceId", u.totalclasses AS "totalClasses", u.mobile, u.profilepic AS "profilePic",
-            (SELECT COUNT(*) FROM attendance_logs WHERE studentId = u.id AND status = 'Present') as "classesAttended" 
+            SELECT u.id, u.email, u.password, u.name, u.role, u.department, u.rollno AS "rollNo", u.branch, u.batch, u.registereddeviceid AS "registeredDeviceId", u.mobile, u.profilepic AS "profilePic",
+            (SELECT COUNT(*) FROM attendance_logs a 
+             LEFT JOIN semesters s ON s.branch = u.branch AND s.batch = u.batch AND s.status = 'Active'
+             WHERE a.studentId = u.id AND a.status = 'Present' 
+             AND (s.id IS NULL OR (a.date >= s.startDate AND a.date <= s.endDate))) as "classesAttended",
+            (SELECT COUNT(*) FROM calendar_events c
+             LEFT JOIN semesters s ON s.branch = u.branch AND s.batch = u.batch AND s.status = 'Active'
+             WHERE c.status = 'Verified' AND c.type = 'Class' AND c.branch = u.branch AND c.batch = u.batch
+             AND (s.id IS NULL OR (c.date >= s.startDate AND c.date <= s.endDate))) as "totalClasses"
             FROM users u
         `;
         let queryParams = [];
@@ -465,6 +472,19 @@ app.get('/api/users', async (req, res) => {
 app.post('/api/users', async (req, res) => {
     const { id, email, password, name, role, department, rollNo, branch, batch, mobile, profilePic } = req.body;
     try {
+        if (role === 'teacher' && branch && batch) {
+            const requestedBatches = batch.split(',').map(b => b.trim());
+            const { rows } = await pool.query('SELECT batch FROM users WHERE role = $1 AND branch = $2', ['teacher', branch]);
+            for (const row of rows) {
+                if (row.batch) {
+                    const existingBatches = row.batch.split(',').map(b => b.trim());
+                    const overlap = requestedBatches.find(b => existingBatches.includes(b));
+                    if (overlap) {
+                        return res.status(400).json({ success: false, error: `Teacher already exists for branch ${branch} and batch ${overlap}` });
+                    }
+                }
+            }
+        }
         const customId = id || (role === 'teacher' ? `T-${Date.now()}` : `S-${Date.now()}`);
         await pool.query(
             'INSERT INTO users (id, email, password, name, role, department, rollNo, branch, batch, mobile, profilePic) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
@@ -472,14 +492,36 @@ app.post('/api/users', async (req, res) => {
         );
         res.json({ success: true, message: 'User created' });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
 });
 
 app.put('/api/users/:id', async (req, res) => {
     const { id } = req.params;
-    const { name, email, password, branch, batch, department, rollNo, mobile, registeredDeviceId, profilePic } = req.body;
+    const { name, email, password, branch, batch, department, rollNo, mobile, registeredDeviceId, profilePic, role } = req.body;
     try {
+        const { rows: userRows } = await pool.query('SELECT role, branch, batch FROM users WHERE id = $1', [id]);
+        if (userRows.length > 0) {
+            const userRole = role || userRows[0].role;
+            const targetBranch = branch || userRows[0].branch;
+            const targetBatch = batch || userRows[0].batch;
+            
+            if (userRole === 'teacher' && targetBranch && targetBatch) {
+                const requestedBatches = targetBatch.split(',').map(b => b.trim());
+                const { rows } = await pool.query('SELECT id, batch FROM users WHERE role = $1 AND branch = $2 AND id != $3', ['teacher', targetBranch, id]);
+                for (const row of rows) {
+                    if (row.batch) {
+                        const existingBatches = row.batch.split(',').map(b => b.trim());
+                        const overlap = requestedBatches.find(b => existingBatches.includes(b));
+                        if (overlap) {
+                            return res.status(400).json({ success: false, error: `Teacher already exists for branch ${targetBranch} and batch ${overlap}` });
+                        }
+                    }
+                }
+            }
+        }
+
         await pool.query(
             `UPDATE users SET
                 name = COALESCE($1, name),
@@ -689,10 +731,71 @@ app.post('/api/attendance/validate', async (req, res) => {
     }
 });
 
+// ─── Semesters Endpoints ───
+app.get('/api/semesters', async (req, res) => {
+    try {
+        const { branch, batch, status } = req.query;
+        let query = 'SELECT * FROM semesters WHERE 1=1';
+        let params = [];
+        if (branch) { params.push(branch); query += ` AND branch = $${params.length}`; }
+        if (batch) { params.push(batch); query += ` AND batch = $${params.length}`; }
+        if (status) { params.push(status); query += ` AND status = $${params.length}`; }
+        const { rows } = await pool.query(query, params);
+        res.json({ success: true, semesters: rows });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
+});
+
+app.post('/api/semesters', async (req, res) => {
+    const { branch, batch, teacherId, startDate, endDate } = req.body;
+    try {
+        await pool.query(
+            'UPDATE semesters SET status = $1 WHERE branch = $2 AND batch = $3 AND status = $4',
+            ['Completed', branch, batch, 'Active']
+        );
+        await pool.query(
+            'INSERT INTO semesters (branch, batch, teacherId, startDate, endDate, status) VALUES ($1, $2, $3, $4, $5, $6)',
+            [branch, batch, teacherId, startDate, endDate, 'Active']
+        );
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
+});
+
+app.put('/api/semesters/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+        await pool.query('UPDATE semesters SET status = $1 WHERE id = $2', [status, id]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
+});
+
+app.get('/api/semesters/history', async (req, res) => {
+    try {
+        const { branch, batch } = req.query;
+        let query = 'SELECT * FROM semesters WHERE status = $1';
+        let params = ['Completed'];
+        if (branch) { params.push(branch); query += ` AND branch = $${params.length}`; }
+        if (batch) { params.push(batch); query += ` AND batch = $${params.length}`; }
+        query += ' ORDER BY startDate DESC';
+        const { rows } = await pool.query(query, params);
+        res.json({ success: true, semesters: rows });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
+});
+
+// ─── Calendar Endpoints ───
+
 app.get('/api/calendar', async (req, res) => {
     try {
-        const { status, batch } = req.query;
-        let query = 'SELECT * FROM calendar_events';
+        const { status, batch, branch } = req.query;
+        let query = 'SELECT id, date, type, reason, status, "teacherId", batch, branch FROM calendar_events';
         let conditions = [];
         let params = [];
 
@@ -706,44 +809,35 @@ app.get('/api/calendar', async (req, res) => {
             params.push(batch);
         }
 
+        if (branch && branch !== 'All') {
+            conditions.push(`(branch = $${conditions.length + 1} OR branch = 'All')`);
+            params.push(branch);
+        }
+
         if (conditions.length > 0) {
             query += ' WHERE ' + conditions.join(' AND ');
         }
         
         query += ' ORDER BY date ASC';
 
-        const { rows: events } = await pool.query(query, params);
-        res.json({ success: true, events });
+        const { rows } = await pool.query(query, params);
+        res.json({ success: true, events: rows });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
 });
 
 app.post('/api/calendar', async (req, res) => {
-    const eventsToProcess = Array.isArray(req.body) ? req.body : [req.body];
+    const { events } = req.body;
     try {
-        const insertQuery = `
-            INSERT INTO calendar_events (date, type, reason, status, teacherId, batch)
-            VALUES ($1, $2, $3, 'Pending', $4, $5)
-            ON CONFLICT (date, batch) DO UPDATE SET
-                type = EXCLUDED.type,
-                reason = EXCLUDED.reason,
-                status = 'Pending',
-                teacherId = EXCLUDED.teacherId
-        `;
-        for (const event of eventsToProcess) {
-            const date = event.date || null;
-            const type = event.type || null;
-            const reason = event.reason || '';
-            const teacherId = event.teacherId || null;
-            const batch = event.batch || 'All';
-            try {
-                await pool.query(insertQuery, [date, type, reason, teacherId, batch]);
-            } catch (err) {
-                if (err.code === '23503') { 
-                    await pool.query(insertQuery, [date, type, reason, null, batch]);
-                } else { throw err; }
-            }
+        for (const evt of events) {
+            await pool.query(
+                `INSERT INTO calendar_events (date, type, reason, status, "teacherId", batch, branch)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                 ON CONFLICT (date, branch, batch) DO UPDATE
+                 SET type = EXCLUDED.type, reason = EXCLUDED.reason, status = EXCLUDED.status, "teacherId" = EXCLUDED."teacherId"`,
+                [evt.date, evt.type, evt.reason, 'Pending', evt.teacherId, evt.batch || 'All', evt.branch || 'All']
+            );
         }
         res.json({ success: true });
     } catch (error) {

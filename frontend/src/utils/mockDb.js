@@ -38,7 +38,81 @@ export const addUser = async (role, userData) => {
     }
 };
 
-// --- Statistics ---
+export const getUsers = async (requesterId = null) => {
+    try {
+        let url = `${API_BASE_URL}/api/users`;
+        if (requesterId) {
+            url += `?requesterId=${requesterId}`;
+        }
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Failed to fetch users');
+        const data = await res.json();
+        return data.users || [];
+    } catch (err) {
+        console.error(err);
+        return [];
+    }
+};
+
+export const getSemesters = async (branch, batch, status) => {
+    try {
+        let url = `${API_BASE_URL}/api/semesters?`;
+        if (branch) url += `branch=${encodeURIComponent(branch)}&`;
+        if (batch) url += `batch=${encodeURIComponent(batch)}&`;
+        if (status) url += `status=${encodeURIComponent(status)}&`;
+        const res = await fetch(url);
+        const data = await res.json();
+        return data.semesters || [];
+    } catch (err) {
+        console.error(err);
+        return [];
+    }
+};
+
+export const createSemester = async (semesterData) => {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/semesters`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(semesterData)
+        });
+        const data = await res.json();
+        return data.success;
+    } catch (err) {
+        console.error(err);
+        return false;
+    }
+};
+
+export const updateSemesterStatus = async (id, status) => {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/semesters/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status })
+        });
+        const data = await res.json();
+        return data.success;
+    } catch (err) {
+        console.error(err);
+        return false;
+    }
+};
+
+export const getSemesterHistory = async (branch, batch) => {
+    try {
+        let url = `${API_BASE_URL}/api/semesters/history?`;
+        if (branch) url += `branch=${encodeURIComponent(branch)}&`;
+        if (batch) url += `batch=${encodeURIComponent(batch)}&`;
+        const res = await fetch(url);
+        const data = await res.json();
+        return data.semesters || [];
+    } catch (err) {
+        console.error(err);
+        return [];
+    }
+};
+
 export const getStats = async () => {
     try {
         const res = await fetch(`${API_BASE_URL}/api/users`);
@@ -291,12 +365,13 @@ export const getAttendanceRange = async (startDate, endDate) => {
 };
 
 // --- Calendar Feature ---
-export const getCalendarEvents = async (status, batch) => {
+export const getCalendarEvents = async (status, batch, branch) => {
     try {
         let url = `${API_BASE_URL}/api/calendar`;
         let params = [];
         if (status) params.push(`status=${encodeURIComponent(status)}`);
         if (batch) params.push(`batch=${encodeURIComponent(batch)}`);
+        if (branch) params.push(`branch=${encodeURIComponent(branch)}`);
         
         if (params.length > 0) {
             url += `?${params.join('&')}`;

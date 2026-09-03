@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Users, MapPin, Building, Activity, Download, Settings, ChevronRight, Save, X, Calendar as CalendarIcon, CheckCircle, XCircle, Trash2, PlusCircle } from 'lucide-react';
-import { getStats, getDepartmentStats, getCollegeTiming, updateCollegeTiming, getGeofence, updateGeofence, getDeviceRequests, approveDeviceRequest, rejectDeviceRequest, getCalendarEvents, verifyCalendarEvent, deleteCalendarEvent, verifyAllCalendarEvents, rejectAllCalendarEvents, getTodayAttendance } from '../utils/mockDb';
+import { getStats, getDepartmentStats, getCollegeTiming, updateCollegeTiming, getGeofence, updateGeofence, getDeviceRequests, approveDeviceRequest, rejectDeviceRequest, getCalendarEvents, verifyCalendarEvent, deleteCalendarEvent, verifyAllCalendarEvents, rejectAllCalendarEvents, getTodayAttendance, getUsers } from '../utils/mockDb';
 
 const AdminDashboard = () => {
     const { user } = useAuth();
@@ -19,6 +19,10 @@ const AdminDashboard = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [isEventModalOpen, setIsEventModalOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
+    const [availableBranches, setAvailableBranches] = useState([]);
+    const [availableBatches, setAvailableBatches] = useState([]);
+    const [selectedBranch, setSelectedBranch] = useState('All');
+    const [selectedBatch, setSelectedBatch] = useState('All');
 
     // Total Students Modal States
     const [isTotalStudentsModalOpen, setIsTotalStudentsModalOpen] = useState(false);
@@ -38,13 +42,14 @@ const AdminDashboard = () => {
         const loadDashboardData = async () => {
             if (!user?.id) return;
             try {
-                const [newStats, newDepts, timings, geofence, reqs, cReqs] = await Promise.all([
+                const [newStats, newDepts, timings, geofence, reqs, cReqs, usersList] = await Promise.all([
                     getStats(),
                     getDepartmentStats(),
                     getCollegeTiming(),
                     getGeofence(),
                     getDeviceRequests(),
-                    getCalendarEvents()
+                    getCalendarEvents(),
+                    getUsers()
                 ]);
 
                 setStats(newStats);
@@ -52,6 +57,17 @@ const AdminDashboard = () => {
                 setTimingConfig(timings);
                 setDeviceReqs(reqs);
                 setCalendarReqs(cReqs);
+                
+                const teachers = usersList.filter(u => u.role === 'teacher');
+                const branches = [...new Set(teachers.map(t => t.branch).filter(Boolean))];
+                let batchesSet = new Set();
+                teachers.forEach(t => {
+                    if (t.batch) {
+                        t.batch.split(',').forEach(b => batchesSet.add(b.trim()));
+                    }
+                });
+                setAvailableBranches(branches);
+                setAvailableBatches([...batchesSet]);
             } catch (err) {
                 console.error("Error loading admin data:", err);
             } finally {
@@ -329,9 +345,9 @@ const AdminDashboard = () => {
                     }}
                 >
                     Calendar Request
-                    {calendarReqs.length > 0 && (
+                    {pendingCount > 0 && (
                         <span style={{ backgroundColor: 'var(--color-danger)', color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 'bold' }}>
-                            {calendarReqs.length}
+                            {pendingCount}
                         </span>
                     )}
                 </button>
@@ -711,9 +727,10 @@ const AdminDashboard = () => {
                                     <div>
                                         <h4 style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--color-text-primary)' }}>{req.studentName}</h4>
                                         <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginTop: '0.25rem' }}>
-                                            <span><strong>ID:</strong> {req.studentId}</span>
+                                            <span><strong>ID:</strong> {req.studentid || req.studentId}</span>
+                                            <span><strong>Roll No:</strong> {req.rollNo}</span>
                                             <span><strong>Requested:</strong> {new Date(req.timestamp).toLocaleString()}</span>
-                                            <span style={{ fontFamily: 'monospace', backgroundColor: '#f1f5f9', padding: '0 0.25rem', borderRadius: '0.25rem' }}>Device: {req.newDeviceId}</span>
+                                            <span style={{ fontFamily: 'monospace', backgroundColor: '#f1f5f9', padding: '0 0.25rem', borderRadius: '0.25rem' }}>Device: {req.newdeviceid || req.newDeviceId}</span>
                                         </div>
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -769,6 +786,9 @@ const AdminDashboard = () => {
                 const blanks = Array.from({ length: firstDayOfMonth }, (_, i) => i);
 
                 const getEventsForDate = (dateLocalStr) => calendarReqs.filter(e => {
+                    if (selectedBranch !== 'All' && e.branch !== selectedBranch && e.branch !== 'All') return false;
+                    if (selectedBatch !== 'All' && e.batch !== selectedBatch && e.batch !== 'All') return false;
+                    
                     const d = new Date(e.date);
                     const dbDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                     return dbDate === dateLocalStr;
@@ -812,6 +832,28 @@ const AdminDashboard = () => {
                                         </div>
                                     )}
                                 </p>
+                            </div>
+                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                <select 
+                                    value={selectedBranch} 
+                                    onChange={(e) => setSelectedBranch(e.target.value)}
+                                    style={{ padding: '0.4rem', borderRadius: '0.25rem', border: '1px solid var(--color-border)', fontSize: '0.875rem' }}
+                                >
+                                    <option value="All">All Branches</option>
+                                    {availableBranches.map(b => (
+                                        <option key={b} value={b}>{b}</option>
+                                    ))}
+                                </select>
+                                <select 
+                                    value={selectedBatch} 
+                                    onChange={(e) => setSelectedBatch(e.target.value)}
+                                    style={{ padding: '0.4rem', borderRadius: '0.25rem', border: '1px solid var(--color-border)', fontSize: '0.875rem' }}
+                                >
+                                    <option value="All">All Batches</option>
+                                    {availableBatches.map(b => (
+                                        <option key={b} value={b}>{b}</option>
+                                    ))}
+                                </select>
                             </div>
                             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                                 <button className="btn btn-outline" onClick={() => setCurrentDate(new Date(year, month - 1, 1))}>&lt; Prev</button>
