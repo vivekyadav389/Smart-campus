@@ -272,29 +272,51 @@ const StudentDashboard = () => {
                     return lDateStr === todayStr || l.date.includes(isoToday);
                 });
 
-                // Dynamic calculations from real logs AND calendar events
-                const classEvents = verifiedEvents.filter(e => e.type === 'Class');
+                
+                let semStart = new Date(0);
+                let semEnd = new Date();
+                
+                if (activeSems && activeSems.length > 0) {
+                    semStart = new Date(activeSems[0].start_date);
+                    if (activeSems[0].end_date) {
+                        semEnd = new Date(activeSems[0].end_date);
+                    }
+                }
+
+                // Dynamic calculations from real logs AND calendar events WITHIN active semester
+                const classEvents = verifiedEvents.filter(e => {
+                    if (e.type !== 'Class') return false;
+                    const d = new Date(e.date);
+                    return d >= semStart && d <= semEnd;
+                });
                 const pastClassEvents = classEvents.filter(e => {
                     const d = new Date(e.date);
                     return d <= new Date() && d.getDay() !== 0 && d.getDay() !== 6;
                 });
 
-                // Only count 'Present' logs that do NOT fall on a weekend
+                // Only count 'Present' logs that do NOT fall on a weekend AND are within active semester
                 const trueClassesAttended = logs.filter(l => {
                     if (l.status !== 'Present') return false;
                     const d = new Date(l.date);
-                    return d.getDay() !== 0 && d.getDay() !== 6;
+                    return d >= semStart && d <= semEnd && d.getDay() !== 0 && d.getDay() !== 6;
                 }).length;
 
-                // Fallback: Count weekdays from first of month to today if calendar is empty
+                // Fallback: Count weekdays from start of semester to today (or end of semester)
                 let totalWeekdays = 0;
                 const now = new Date();
-                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-                for (let d = startOfMonth; d <= now; d.setDate(d.getDate() + 1)) {
-                    if (d.getDay() !== 0 && d.getDay() !== 6) totalWeekdays++;
+                let calcEnd = semEnd < now ? semEnd : now;
+                
+                // Ensure calcEnd doesn't go beyond today for calculating "classes happened so far"
+                if (calcEnd > now) calcEnd = now;
+
+                if (semStart <= calcEnd) {
+                    for (let d = new Date(semStart); d <= calcEnd; d.setDate(d.getDate() + 1)) {
+                        if (d.getDay() !== 0 && d.getDay() !== 6) totalWeekdays++;
+                    }
                 }
 
-                // Total classes should be based on the calendar (up to today), or fallback to total weekdays
+                // Total classes should be based on the calendar (up to today), or fallback to total weekdays in semester
+
                 const trueTotalClasses = pastClassEvents.length > 0 ? pastClassEvents.length : (totalWeekdays > 0 ? totalWeekdays : 1);
                 const truePercentage = Math.round((trueClassesAttended / trueTotalClasses) * 100);
 
