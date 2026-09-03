@@ -440,11 +440,11 @@ app.get('/api/users', async (req, res) => {
         let queryStr = `
             SELECT u.id, u.email, u.password, u.name, u.role, u.department, u.rollno AS "rollNo", u.branch, u.batch, u.registereddeviceid AS "registeredDeviceId", u.mobile, u.profilepic AS "profilePic",
             (SELECT COUNT(*) FROM attendance_logs a 
-             LEFT JOIN semesters s ON s.branch = u.branch AND s.batch = u.batch AND s.status = 'Active'
+             LEFT JOIN LATERAL (SELECT id, startDate, endDate FROM semesters WHERE branch = u.branch AND batch = u.batch AND status = 'Active' LIMIT 1) s ON true
              WHERE a.studentId = u.id AND a.status = 'Present' 
              AND (s.id IS NULL OR (a.date >= s.startDate AND a.date <= s.endDate))) as "classesAttended",
             (SELECT COUNT(*) FROM calendar_events c
-             LEFT JOIN semesters s ON s.branch = u.branch AND s.batch = u.batch AND s.status = 'Active'
+             LEFT JOIN LATERAL (SELECT id, startDate, endDate FROM semesters WHERE branch = u.branch AND batch = u.batch AND status = 'Active' LIMIT 1) s ON true
              WHERE c.status = 'Verified' AND c.type = 'Class' AND c.branch = u.branch AND c.batch = u.batch
              AND (s.id IS NULL OR (c.date >= s.startDate AND c.date <= s.endDate))) as "totalClasses"
             FROM users u
@@ -465,7 +465,7 @@ app.get('/api/users', async (req, res) => {
         const { rows: users } = await pool.query(queryStr, queryParams);
         res.json({ success: true, users });
     } catch (error) {
-        res.status(500).json({ success: false, error: 'Internal Server Error' });
+        res.status(500).json({ success: false, error: error.message || 'Internal Server Error' });
     }
 });
 
