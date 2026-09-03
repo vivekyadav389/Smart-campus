@@ -440,13 +440,13 @@ app.get('/api/users', async (req, res) => {
         let queryStr = `
             SELECT u.id, u.email, u.password, u.name, u.role, u.department, u.rollno AS "rollNo", u.branch, u.batch, u.registereddeviceid AS "registeredDeviceId", u.mobile, u.profilepic AS "profilePic",
             (SELECT COUNT(*) FROM attendance_logs a 
-             LEFT JOIN LATERAL (SELECT id, startDate, endDate FROM semesters WHERE branch = u.branch AND batch = u.batch AND status = 'Active' LIMIT 1) s ON true
+             LEFT JOIN LATERAL (SELECT id, start_date as "startDate", end_date as "endDate" FROM semesters WHERE branch = u.branch AND batch = u.batch AND state = 'Active' LIMIT 1) s ON true
              WHERE a.studentId = u.id AND a.status = 'Present' 
-             AND (s.id IS NULL OR (a.date >= s.startDate AND a.date <= s.endDate))) as "classesAttended",
+             AND (s.id IS NULL OR (a.date >= s."startDate" AND a.date <= s."endDate"))) as "classesAttended",
             (SELECT COUNT(*) FROM calendar_events c
-             LEFT JOIN LATERAL (SELECT id, startDate, endDate FROM semesters WHERE branch = u.branch AND batch = u.batch AND status = 'Active' LIMIT 1) s ON true
+             LEFT JOIN LATERAL (SELECT id, start_date as "startDate", end_date as "endDate" FROM semesters WHERE branch = u.branch AND batch = u.batch AND state = 'Active' LIMIT 1) s ON true
              WHERE c.status = 'Verified' AND c.type = 'Class' AND c.branch = u.branch AND c.batch = u.batch
-             AND (s.id IS NULL OR (c.date >= s.startDate AND c.date <= s.endDate))) as "totalClasses"
+             AND (s.id IS NULL OR (c.date >= s."startDate" AND c.date <= s."endDate"))) as "totalClasses"
             FROM users u
         `;
         let queryParams = [];
@@ -748,15 +748,15 @@ app.get('/api/semesters', async (req, res) => {
 });
 
 app.post('/api/semesters', async (req, res) => {
-    const { branch, batch, teacherId, startDate, endDate } = req.body;
+    const { branch, batch, startDate, endDate } = req.body;
     try {
         await pool.query(
-            'UPDATE semesters SET status = $1 WHERE branch = $2 AND batch = $3 AND status = $4',
+            'UPDATE semesters SET state = $1 WHERE branch = $2 AND batch = $3 AND state = $4',
             ['Completed', branch, batch, 'Active']
         );
         await pool.query(
-            'INSERT INTO semesters (branch, batch, teacherId, startDate, endDate, status) VALUES ($1, $2, $3, $4, $5, $6)',
-            [branch, batch, teacherId, startDate, endDate, 'Active']
+            'INSERT INTO semesters (name, branch, batch, start_date, end_date, state, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            [`Semester ${startDate.substring(0,4)}`, branch, batch, startDate, endDate, 'Active', 'Approved']
         );
         res.json({ success: true });
     } catch (error) {
@@ -782,7 +782,7 @@ app.get('/api/semesters/history', async (req, res) => {
         let params = ['Completed'];
         if (branch) { params.push(branch); query += ` AND branch = $${params.length}`; }
         if (batch) { params.push(batch); query += ` AND batch = $${params.length}`; }
-        query += ' ORDER BY startDate DESC';
+        query += ' ORDER BY start_date DESC';
         const { rows } = await pool.query(query, params);
         res.json({ success: true, semesters: rows });
     } catch (error) {
