@@ -179,7 +179,23 @@ const TeacherDashboard = () => {
         setSemestersHistory(data);
         setIsLoadingHistory(false);
     };
-
+    const handleCreateSemester = async (e) => {
+        e.preventDefault();
+        const success = await createSemester({
+            branch: user.branch,
+            batch: semesterForm.batch,
+            startDate: semesterForm.startDate,
+            endDate: semesterForm.endDate
+        });
+        if (success) {
+            alert('Semester created/updated successfully!');
+            setIsSemesterModalOpen(false);
+            setSemesterForm({ batch: '', startDate: '', endDate: '' });
+            loadSemesterHistory();
+        } else {
+            alert('Failed to create semester');
+        }
+    };
     const handleManualApprove = async (studentId) => {
         if (window.confirm("Approve attendance for this student manually?")) {
             try {
