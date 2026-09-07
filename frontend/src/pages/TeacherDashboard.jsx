@@ -1005,6 +1005,7 @@ const TeacherDashboard = () => {
                             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
                                 <thead>
                                     <tr style={{ borderBottom: '2px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
+                                        <th style={{ padding: '0.75rem 1rem', fontWeight: 500 }}>Branch</th>
                                         <th style={{ padding: '0.75rem 1rem', fontWeight: 500 }}>Batch</th>
                                         <th style={{ padding: '0.75rem 1rem', fontWeight: 500 }}>Name</th>
                                         <th style={{ padding: '0.75rem 1rem', fontWeight: 500 }}>Start Date</th>
@@ -1015,6 +1016,7 @@ const TeacherDashboard = () => {
                                 <tbody>
                                     {semestersHistory.map(sem => (
                                         <tr key={sem.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                            <td style={{ padding: '1rem' }}>{sem.branch}</td>
                                             <td style={{ padding: '1rem' }}>{sem.batch}</td>
                                             <td style={{ padding: '1rem' }}>{sem.name || `Semester ${sem.start_date?.substring(0,4) || ''}`}</td>
                                             <td style={{ padding: '1rem' }}>{new Date(sem.start_date || sem.startdate).toLocaleDateString()}</td>
