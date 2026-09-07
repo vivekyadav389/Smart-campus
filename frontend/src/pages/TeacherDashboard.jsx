@@ -772,7 +772,7 @@ const TeacherDashboard = () => {
                             onChange={e => setMyStudentsBatch(e.target.value)}
                         >
                             <option value="All">All Batches</option>
-                            {uniqueBatches.filter(b => b !== 'All').map(batch => (
+                            {[...new Set(availableExportSemesters.map(s => s.batch).filter(Boolean))].map(batch => (
                                 <option key={batch} value={batch}>Batch {batch}</option>
                             ))}
                         </select>
@@ -968,12 +968,13 @@ const TeacherDashboard = () => {
         <div style={{ display: 'flex', gap: '1rem' }}>
             <select value={historyFilterBranch} onChange={(e) => setHistoryFilterBranch(e.target.value)} className="search-input" style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--color-border)' }}>
                 <option value="All">All Branches</option>
-                {/* Assuming user.branch is the only one they teach, but we give All option */}
-                <option value={user.branch}>{user.branch}</option>
+                {[...new Set(availableExportSemesters.map(s => s.branch).filter(Boolean))].map(branch => (
+                    <option key={branch} value={branch}>{branch}</option>
+                ))}
             </select>
             <select value={historyFilterBatch} onChange={(e) => setHistoryFilterBatch(e.target.value)} className="search-input" style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--color-border)' }}>
                 <option value="All">All Batches</option>
-                {uniqueBatches.filter(b => b !== 'All').map(batch => (
+                {[...new Set(availableExportSemesters.map(s => s.batch).filter(Boolean))].map(batch => (
                     <option key={batch} value={batch}>Batch {batch}</option>
                 ))}
             </select>
@@ -985,24 +986,24 @@ const TeacherDashboard = () => {
                         <p>No completed semesters found.</p>
                     ) : (
                         <div style={{ overflowX: 'auto' }}>
-                            <table className="table">
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
                                 <thead>
-                                    <tr>
-                                        <th>Batch</th>
-                                        <th>Name</th>
-                                        <th>Start Date</th>
-                                        <th>End Date</th>
-                                        <th>Status</th>
+                                    <tr style={{ borderBottom: '2px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
+                                        <th style={{ padding: '0.75rem 1rem', fontWeight: 500 }}>Batch</th>
+                                        <th style={{ padding: '0.75rem 1rem', fontWeight: 500 }}>Name</th>
+                                        <th style={{ padding: '0.75rem 1rem', fontWeight: 500 }}>Start Date</th>
+                                        <th style={{ padding: '0.75rem 1rem', fontWeight: 500 }}>End Date</th>
+                                        <th style={{ padding: '0.75rem 1rem', fontWeight: 500 }}>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {semestersHistory.map(sem => (
-                                        <tr key={sem.id}>
-                                            <td>{sem.batch}</td>
-                                            <td>{sem.name || `Semester ${sem.start_date?.substring(0,4) || ''}`}</td>
-                                            <td>{new Date(sem.start_date || sem.startdate).toLocaleDateString()}</td>
-                                            <td>{sem.end_date ? new Date(sem.end_date || sem.enddate).toLocaleDateString() : '-'}</td>
-                                            <td>
+                                        <tr key={sem.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                            <td style={{ padding: '1rem' }}>{sem.batch}</td>
+                                            <td style={{ padding: '1rem' }}>{sem.name || `Semester ${sem.start_date?.substring(0,4) || ''}`}</td>
+                                            <td style={{ padding: '1rem' }}>{new Date(sem.start_date || sem.startdate).toLocaleDateString()}</td>
+                                            <td style={{ padding: '1rem' }}>{sem.end_date ? new Date(sem.end_date || sem.enddate).toLocaleDateString() : '-'}</td>
+                                            <td style={{ padding: '1rem' }}>
         <span className={`status-badge ${sem.state === 'Active' ? 'status-present' : 'status-absent'}`}>{sem.state}</span>
         <span className="status-badge" style={{ marginLeft: '0.5rem', backgroundColor: '#e2e8f0', color: '#475569' }}>{sem.status}</span>
     </td>
