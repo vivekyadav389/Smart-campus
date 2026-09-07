@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Users, MapPin, Building, Activity, Download, Settings, ChevronRight, Save, X, Calendar as CalendarIcon, CheckCircle, XCircle, Trash2, PlusCircle } from 'lucide-react';
+import { User, Users, MapPin, Building, Activity, Download, Settings, ChevronRight, Save, X, Calendar as CalendarIcon, Calendar, CheckCircle, XCircle, Trash2, PlusCircle } from 'lucide-react';
 import { getStats, getDepartmentStats, getCollegeTiming, updateCollegeTiming, getGeofence, updateGeofence, getDeviceRequests, approveDeviceRequest, rejectDeviceRequest, getCalendarEvents, verifyCalendarEvent, deleteCalendarEvent, verifyAllCalendarEvents, rejectAllCalendarEvents, getTodayAttendance, getUsers } from '../utils/mockDb';
 
 const AdminDashboard = () => {
@@ -183,6 +183,15 @@ const AdminDashboard = () => {
                 });
 
                 setAllStudentsData(mappedStudents);
+                
+                const bSet = new Set(availableBatches);
+                const brSet = new Set(availableBranches);
+                studentUsers.forEach(stu => {
+                    if (stu.batch) bSet.add(stu.batch);
+                    if (stu.branch) brSet.add(stu.branch);
+                });
+                setAvailableBatches([...bSet]);
+                setAvailableBranches([...brSet]);
             }
         } catch (err) {
             console.error(err);
