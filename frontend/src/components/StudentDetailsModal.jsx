@@ -16,7 +16,7 @@ const StudentDetailsModal = ({ student, onClose }) => {
                     getSemesters(student.branch, student.batch),
                     getSemesterHistory(student.branch, student.batch),
                     getAttendanceLogs(student.id),
-                    getCalendarEvents(student.branch, student.batch)
+                    getCalendarEvents('Verified', student.batch, student.branch)
                 ]);
                 
                 const allSems = [...(activeSems || []), ...(historySems || [])];

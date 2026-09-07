@@ -34,84 +34,10 @@ const AdminDashboard = () => {
     const [isLoadingStudents, setIsLoadingStudents] = useState(false);
 
     const [selectedDetailedStudent, setSelectedDetailedStudent] = useState(null);
-    const [detailedStudentSemesters, setDetailedStudentSemesters] = useState([]);
-    const [selectedSemesterId, setSelectedSemesterId] = useState('Current');
-    const [detailedStudentStats, setDetailedStudentStats] = useState({ present: 0, total: 0 });
+    
 
-    const openDetailedStudent = async (student) => {
+    const openDetailedStudent = (student) => {
         setSelectedDetailedStudent(student);
-        setSelectedSemesterId('Current');
-        try {
-            // Fetch semesters for this branch/batch
-            const [activeSems, historySems, logs, events] = await Promise.all([
-                getSemesters(student.branch, student.batch),
-                getSemesterHistory(student.branch, student.batch),
-                getAttendanceLogs(student.id),
-                getCalendarEvents(student.branch, student.batch)
-            ]);
-            
-            const allSems = [...(activeSems || []), ...(historySems || [])];
-            setDetailedStudentSemesters(allSems);
-            
-            // Store logs and events for dynamic calculation
-            student._logs = logs || [];
-            student._events = events || [];
-            
-            calculateDetailedStats(student, 'Current', activeSems && activeSems.length > 0 ? activeSems[0] : null);
-        } catch(e) { console.error(e); }
-    };
-
-    const calculateDetailedStats = (student, semId, defaultSem = null) => {
-        let targetSem = defaultSem;
-        if (semId !== 'Current') {
-            targetSem = detailedStudentSemesters.find(s => s.id === parseInt(semId));
-        } else if (!targetSem && detailedStudentSemesters.length > 0) {
-            targetSem = detailedStudentSemesters.find(s => s.state === 'Active');
-        }
-
-        if (!targetSem) {
-            setDetailedStudentStats({ present: parseInt(student.classesAttended) || 0, total: parseInt(student.totalClasses) || 0 });
-            return;
-        }
-
-        const st = new Date(targetSem.start_date || targetSem.startdate);
-        const en = new Date(targetSem.end_date || targetSem.enddate || new Date());
-        const today = new Date();
-        const calcEnd = en > today ? today : en;
-
-        let totalClassDays = 0;
-        let presentCount = 0;
-
-        let current = new Date(st);
-        while (current <= calcEnd) {
-            const dayOfWeek = current.getDay();
-            const dateStr = current.toISOString().split('T')[0];
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-            
-            const eventForDay = (student._events || []).find(e => e.date.startsWith(dateStr) && e.status === 'Verified');
-            const isHoliday = eventForDay && eventForDay.type === 'Holiday';
-            const isExtraClass = eventForDay && eventForDay.type === 'Extra Class';
-            
-            let isClassDay = false;
-            if (!isWeekend && !isHoliday) isClassDay = true;
-            if (isExtraClass) isClassDay = true;
-            
-            if (isClassDay) {
-                totalClassDays++;
-                const log = (student._logs || []).find(l => l.date.startsWith(dateStr) && l.status === 'Present');
-                if (log) presentCount++;
-            }
-            
-            current.setDate(current.getDate() + 1);
-        }
-
-        setDetailedStudentStats({ present: presentCount, total: totalClassDays });
-    };
-
-    const handleSemesterChange = (e) => {
-        const val = e.target.value;
-        setSelectedSemesterId(val);
-        calculateDetailedStats(selectedDetailedStudent, val);
     };
 
 
