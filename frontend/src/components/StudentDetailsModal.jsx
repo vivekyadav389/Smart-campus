@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
+import ModalErrorBoundary from './ModalErrorBoundary';
 import { User, MapPin, Calendar as CalendarIcon, Calendar, CheckCircle, XCircle, ChevronRight, Hash, Phone, Mail, Building, Activity, X } from 'lucide-react';
 import { getSemesters, getSemesterHistory, getAttendanceLogs, getCalendarEvents } from '../utils/mockDb';
 
-const StudentDetailsModal = ({ student, onClose }) => {
+const StudentDetailsModalInner = ({ student, onClose }) => {
     const [detailedStudentSemesters, setDetailedStudentSemesters] = useState([]);
     const [selectedSemesterId, setSelectedSemesterId] = useState('Current');
     const [detailedStudentStats, setDetailedStudentStats] = useState({ present: 0, total: 0 });
@@ -268,5 +269,11 @@ const StudentDetailsModal = ({ student, onClose }) => {
                 </div>
     );
 };
+
+const StudentDetailsModal = (props) => (
+  <ModalErrorBoundary onClose={props.onClose}>
+    <StudentDetailsModalInner {...props} />
+  </ModalErrorBoundary>
+);
 
 export default StudentDetailsModal;
