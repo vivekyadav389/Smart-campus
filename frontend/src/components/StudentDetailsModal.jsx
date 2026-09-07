@@ -91,6 +91,7 @@ const StudentDetailsModal = ({ student, onClose }) => {
         calculateDetailedStats(student, val);
     };
 
+    console.log("Rendering StudentDetailsModal", student);
     if (!student) return null;
 
     return (
