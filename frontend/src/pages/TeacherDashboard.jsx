@@ -69,6 +69,8 @@ const TeacherDashboard = () => {
     const [semesterForm, setSemesterForm] = useState({ id: null, batch: '', name: '', startDate: '', endDate: '' });
     const [semestersHistory, setSemestersHistory] = useState([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+    const [historyFilterBranch, setHistoryFilterBranch] = useState(user.branch || 'All');
+    const [historyFilterBatch, setHistoryFilterBatch] = useState('All');
 
     // Export Modal States
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -254,7 +256,7 @@ const TeacherDashboard = () => {
 
     const loadSemesterHistory = async () => {
         setIsLoadingHistory(true);
-        const data = await getSemesterHistory(user.branch, 'All'); // Teacher can fetch all completed semesters for their branch
+        const data = await getSemesterHistory(historyFilterBranch, historyFilterBatch);
         setSemestersHistory(data);
         setIsLoadingHistory(false);
     };
@@ -961,7 +963,22 @@ const TeacherDashboard = () => {
             
             {activeTab === 'semesterHistory' && (
                 <div className="animate-fade-in card">
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem' }}>Semester History</h3>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>Semester History</h3>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+            <select value={historyFilterBranch} onChange={(e) => setHistoryFilterBranch(e.target.value)} className="search-input" style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--color-border)' }}>
+                <option value="All">All Branches</option>
+                {/* Assuming user.branch is the only one they teach, but we give All option */}
+                <option value={user.branch}>{user.branch}</option>
+            </select>
+            <select value={historyFilterBatch} onChange={(e) => setHistoryFilterBatch(e.target.value)} className="search-input" style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--color-border)' }}>
+                <option value="All">All Batches</option>
+                {uniqueBatches.filter(b => b !== 'All').map(batch => (
+                    <option key={batch} value={batch}>Batch {batch}</option>
+                ))}
+            </select>
+        </div>
+    </div>
                     {isLoadingHistory ? (
                         <p>Loading history...</p>
                     ) : semestersHistory.length === 0 ? (
@@ -985,7 +1002,10 @@ const TeacherDashboard = () => {
                                             <td>{sem.name || `Semester ${sem.start_date?.substring(0,4) || ''}`}</td>
                                             <td>{new Date(sem.start_date || sem.startdate).toLocaleDateString()}</td>
                                             <td>{sem.end_date ? new Date(sem.end_date || sem.enddate).toLocaleDateString() : '-'}</td>
-                                            <td><span className={`status-badge ${sem.state === 'Active' ? 'status-present' : 'status-absent'}`}>{sem.status}</span></td>
+                                            <td>
+        <span className={`status-badge ${sem.state === 'Active' ? 'status-present' : 'status-absent'}`}>{sem.state}</span>
+        <span className="status-badge" style={{ marginLeft: '0.5rem', backgroundColor: '#e2e8f0', color: '#475569' }}>{sem.status}</span>
+    </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -1504,6 +1524,30 @@ const TeacherDashboard = () => {
                                         max={getLocalYMD()}
                                     />
                                 </div>
+                            </div>
+
+                                                        <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.875rem', color: 'var(--color-text-primary)' }}>Select Semester</label>
+                                <select
+                                    value={exportSemesterId}
+                                    onChange={(e) => {
+                                        setExportSemesterId(e.target.value);
+                                        const sem = availableExportSemesters.find(s => s.id.toString() === e.target.value);
+                                        if (sem) {
+                                            setExportRange({
+                                                start: sem.start_date.split('T')[0],
+                                                end: sem.end_date ? sem.end_date.split('T')[0] : new Date().toISOString().split('T')[0]
+                                            });
+                                        }
+                                    }}
+                                    className="search-input"
+                                    style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--color-border)' }}
+                                >
+                                    <option value="" disabled>-- Select a Semester --</option>
+                                    {availableExportSemesters.map(sem => (
+                                        <option key={sem.id} value={sem.id.toString()}>{sem.name || `Semester ${sem.start_date?.substring(0,4)||''}`}</option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div>
