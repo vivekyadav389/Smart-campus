@@ -1659,12 +1659,7 @@ const TeacherDashboard = () => {
                 student={selectedDetailedStudent} 
                 onClose={() => setSelectedDetailedStudent(null)} 
             />
-            {selectedDetailedStudent && (
-                <div style={{ position: 'fixed', top: 10, left: 10, zIndex: 99999, background: 'red', color: 'white', padding: '20px' }}>
-                    DEBUG MODAL OVERLAY TRIGGERED FOR {selectedDetailedStudent.name}
-                    <button onClick={() => setSelectedDetailedStudent(null)}>Close Debug</button>
-                </div>
-            )}
+            <StudentDetailsModal student={selectedDetailedStudent} onClose={() => setSelectedDetailedStudent(null)} />
 
 </div>
 
