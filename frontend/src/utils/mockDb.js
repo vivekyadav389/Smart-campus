@@ -57,8 +57,8 @@ export const getUsers = async (requesterId = null) => {
 export const getSemesters = async (branch, batch, status, state) => {
     try {
         let url = `${API_BASE_URL}/api/semesters?`;
-        if (branch) url += `branch=${encodeURIComponent(branch)}&`;
-        if (batch) url += `batch=${encodeURIComponent(batch)}&`;
+        if (branch && branch !== 'All') url += `branch=${encodeURIComponent(branch)}&`;
+        if (batch && batch !== 'All') url += `batch=${encodeURIComponent(batch)}&`;
         if (status) url += `status=${encodeURIComponent(status)}&`;
         if (state) url += `state=${encodeURIComponent(state)}&`;
         const res = await fetch(url);
@@ -117,8 +117,8 @@ export const updateSemesterStatus = async (id, status) => {
 export const getSemesterHistory = async (branch, batch) => {
     try {
         let url = `${API_BASE_URL}/api/semesters/history?`;
-        if (branch) url += `branch=${encodeURIComponent(branch)}&`;
-        if (batch) url += `batch=${encodeURIComponent(batch)}&`;
+        if (branch && branch !== 'All') url += `branch=${encodeURIComponent(branch)}&`;
+        if (batch && batch !== 'All') url += `batch=${encodeURIComponent(batch)}&`;
         const res = await fetch(url);
         const data = await res.json();
         return data.semesters || [];
@@ -385,8 +385,8 @@ export const getCalendarEvents = async (status, batch, branch) => {
         let url = `${API_BASE_URL}/api/calendar`;
         let params = [];
         if (status) params.push(`status=${encodeURIComponent(status)}`);
-        if (batch) params.push(`batch=${encodeURIComponent(batch)}`);
-        if (branch) params.push(`branch=${encodeURIComponent(branch)}`);
+        if (batch && batch !== 'All') params.push(`batch=${encodeURIComponent(batch)}`);
+        if (branch && branch !== 'All') params.push(`branch=${encodeURIComponent(branch)}`);
         
         if (params.length > 0) {
             url += `?${params.join('&')}`;
