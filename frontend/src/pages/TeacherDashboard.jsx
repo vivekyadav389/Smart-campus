@@ -77,6 +77,22 @@ const TeacherDashboard = () => {
     const [exportBatch, setExportBatch] = useState('All');
     const [exportSemesterId, setExportSemesterId] = useState('');
     const [availableExportSemesters, setAvailableExportSemesters] = useState([]);
+
+    useEffect(() => {
+        const fetchAvailableSemesters = async () => {
+            if (user?.branch) {
+                // Fetch all semesters for the teacher's branch
+                const activeData = await getSemesters(user.branch, 'All');
+                const historyData = await getSemesterHistory(user.branch, 'All');
+                // Combine them and remove duplicates by ID
+                const allSemesters = [...activeData, ...historyData];
+                const uniqueSems = Array.from(new Map(allSemesters.map(item => [item.id, item])).values());
+                setAvailableExportSemesters(uniqueSems);
+            }
+        };
+        fetchAvailableSemesters();
+    }, [user]);
+
     const [exportRange, setExportRange] = useState({
         start: getLocalYMD(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
         end: getLocalYMD()
