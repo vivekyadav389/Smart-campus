@@ -800,8 +800,8 @@ app.post('/api/semesters', async (req, res) => {
 app.get('/api/semesters/history', async (req, res) => {
     try {
         const { branch, batch } = req.query;
-        let query = 'SELECT * FROM semesters WHERE status = $1';
-        let params = ['Completed'];
+        let query = 'SELECT * FROM semesters WHERE state = $1';
+        let params = ['Ended'];
         if (branch) { params.push(branch); query += ` AND branch = $${params.length}`; }
         if (batch) { params.push(batch); query += ` AND batch = $${params.length}`; }
         query += ' ORDER BY start_date DESC';
