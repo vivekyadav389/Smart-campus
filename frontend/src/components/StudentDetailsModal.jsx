@@ -7,6 +7,8 @@ const StudentDetailsModal = ({ student, onClose }) => {
     const [detailedStudentSemesters, setDetailedStudentSemesters] = useState([]);
     const [selectedSemesterId, setSelectedSemesterId] = useState('Current');
     const [detailedStudentStats, setDetailedStudentStats] = useState({ present: 0, total: 0 });
+    const [studentLogs, setStudentLogs] = useState([]);
+    const [studentEvents, setStudentEvents] = useState([]);
 
     useEffect(() => {
         if (!student) return;
@@ -22,16 +24,15 @@ const StudentDetailsModal = ({ student, onClose }) => {
                 const allSems = [...(activeSems || []), ...(historySems || [])];
                 setDetailedStudentSemesters(allSems);
                 
-                student._logs = logs || [];
-                student._events = events || [];
-                
-                calculateDetailedStats(student, 'Current', activeSems && activeSems.length > 0 ? activeSems[0] : null, allSems);
+                setStudentLogs(logs || []);
+                setStudentEvents(events || []);
+                calculateDetailedStats(student, 'Current', activeSems && activeSems.length > 0 ? activeSems[0] : null, allSems, logs || [], events || []);
             } catch(e) { console.error(e); }
         };
         loadData();
     }, [student]);
 
-    const calculateDetailedStats = (stu, semId, defaultSem = null, allSems = detailedStudentSemesters) => {
+    const calculateDetailedStats = (stu, semId, defaultSem = null, allSems = detailedStudentSemesters, logs = studentLogs, events = studentEvents) => {
         let targetSem = defaultSem;
         if (semId !== 'Current') {
             targetSem = allSems.find(s => s.id === parseInt(semId));
@@ -46,6 +47,7 @@ const StudentDetailsModal = ({ student, onClose }) => {
 
         const st = new Date(targetSem.start_date || targetSem.startdate);
         const en = new Date(targetSem.end_date || targetSem.enddate || new Date());
+        if (isNaN(st.getTime())) return; // Prevent Invalid Date crash
         const today = new Date();
         const calcEnd = en > today ? today : en;
 
@@ -58,7 +60,7 @@ const StudentDetailsModal = ({ student, onClose }) => {
             const dateStr = current.toISOString().split('T')[0];
             const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
             
-            const eventForDay = (stu._events || []).find(e => e.date.startsWith(dateStr) && e.status === 'Verified');
+            const eventForDay = (events || []).find(e => e.date.startsWith(dateStr) && e.status === 'Verified');
             const isHoliday = eventForDay && eventForDay.type === 'Holiday';
             const isExtraClass = eventForDay && eventForDay.type === 'Extra Class';
             
@@ -75,7 +77,7 @@ const StudentDetailsModal = ({ student, onClose }) => {
             
             if (isClassDay) {
                 totalClassDays++;
-                const log = (stu._logs || []).find(l => l.date.startsWith(dateStr) && l.status === 'Present');
+                const log = (logs || []).find(l => l.date.startsWith(dateStr) && l.status === 'Present');
                 if (log) presentCount++;
             }
             
