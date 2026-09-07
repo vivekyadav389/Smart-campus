@@ -842,23 +842,28 @@ const TeacherDashboard = () => {
                         </div>
 
                         {/* Student Grid */}
-                        <div style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
+                        <div style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1.5rem' }}>
                             {filteredStudents.length > 0 ? (
                                 filteredStudents.map(student => (
-                                    <div key={student.id} style={{
-                                        border: '1px solid var(--color-border)',
-                                        borderRadius: '0.75rem',
-                                        padding: '1.25rem',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '1rem',
-                                        backgroundColor: 'white',
-                                        transition: 'transform 0.2s, box-shadow 0.2s',
-                                    }}
+                                    <div 
+                                        key={student.id} 
+                                        onClick={() => setSelectedDetailedStudent(student)}
+                                        style={{
+                                            border: '1px solid var(--color-border)',
+                                            borderRadius: '1rem',
+                                            padding: '1.5rem',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            textAlign: 'center',
+                                            backgroundColor: 'white',
+                                            transition: 'transform 0.2s, box-shadow 0.2s',
+                                            cursor: 'pointer'
+                                        }}
                                         className="hover:-translate-y-1 hover:shadow-md"
                                     >
                                         {/* Avatar */}
-                                        <div style={{ position: 'relative' }}>
+                                        <div style={{ position: 'relative', marginBottom: '1rem' }}>
                                             <div style={{
                                                 width: '48px', height: '48px',
                                                 borderRadius: '50%',
@@ -879,16 +884,16 @@ const TeacherDashboard = () => {
                                         </div>
 
                                         {/* Details */}
-                                        <div style={{ flex: 1, overflow: 'hidden' }}>
-                                            <h4 style={{ fontWeight: 600, fontSize: '1rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{student.name}</h4>
-                                            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginBottom: '0.25rem' }}>{student.rollNo} • {student.branch}</p>
+                                        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                                            <h4 style={{ fontWeight: 600, fontSize: '1.125rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', width: '100%' }}>{student.name}</h4>
+                                            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '0.75rem' }}>{student.rollNo} • {student.batch}</p>
 
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
-                                                <span className={`badge ${student.status === 'Present' ? 'badge-success' : (student.status === 'Left Campus' ? 'badge-warning' : (student.status === 'Weekend' ? '' : 'badge-danger'))}`} style={student.status === 'Weekend' ? { backgroundColor: '#f3f4f6', color: '#6b7280', border: '1px solid #d1d5db', fontSize: '0.7rem', padding: '0.15rem 0.5rem' } : { fontSize: '0.7rem', padding: '0.15rem 0.5rem' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', width: '100%', marginTop: 'auto' }}>
+                                                <span className={`badge ${student.status === 'Present' ? 'badge-success' : (student.status === 'Left Campus' ? 'badge-warning' : (student.status === 'Weekend' ? '' : 'badge-danger'))}`} style={student.status === 'Weekend' ? { backgroundColor: '#f3f4f6', color: '#6b7280', border: '1px solid #d1d5db', fontSize: '0.75rem', padding: '0.25rem 0.75rem' } : { fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}>
                                                     {student.status === 'Weekend' ? 'Weekend - Closed' : student.status}
                                                 </span>
-                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
-                                                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: student.status === 'Present' ? 'var(--color-success)' : student.status === 'Left Campus' ? 'var(--color-warning)' : (student.status === 'Weekend' ? '#6b7280' : 'var(--color-danger)') }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                                                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: student.status === 'Present' ? 'var(--color-success)' : student.status === 'Left Campus' ? 'var(--color-warning)' : (student.status === 'Weekend' ? '#6b7280' : 'var(--color-danger)') }}>
                                                         {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: {student.status}
                                                     </div>
                                                     {(() => {
