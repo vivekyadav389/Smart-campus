@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import ModalErrorBoundary from './ModalErrorBoundary';
-import { User, MapPin, Calendar as CalendarIcon, Calendar, CheckCircle, XCircle, ChevronRight, Hash, Phone, Mail, Building, Activity, X } from 'lucide-react';
+import { User, MapPin, Calendar as CalendarIcon, Calendar, CheckCircle, XCircle, ChevronRight, Hash, Phone, Mail, Building, Activity, X, BookOpen } from 'lucide-react';
 import { getSemesters, getSemesterHistory, getAttendanceLogs, getCalendarEvents } from '../utils/mockDb';
 
 const StudentDetailsModalInner = ({ student, onClose }) => {
