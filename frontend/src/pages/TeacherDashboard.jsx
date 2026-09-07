@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Users, Filter, CheckCircle, XCircle, Search, Download, Clock, CalendarDays, Calendar as CalendarIcon, Edit3, Trash2, X } from 'lucide-react';
 import { API_BASE_URL, getTodayAttendance, getAttendanceByDate, getAttendanceRange, getCalendarEvents, saveCalendarEvent, deleteCalendarEvent, markManualAttendance, createSemester, updateSemester, getSemesters, updateSemesterStatus, getSemesterHistory } from '../utils/mockDb';
+import StudentDetailsModal from '../components/StudentDetailsModal';
 
 const getLocalYMD = (dateObj = new Date()) => {
     return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
@@ -118,7 +119,16 @@ const TeacherDashboard = () => {
                     else if (isWeekend && !hasClass) status = 'Weekend';
                     else if (!isWeekend && !hasClass) status = 'Closed';
                     
-                    if (log && log.status) status = log.status;
+                    if (log && log.status) {
+                        if (log.status !== 'Absent') {
+                            status = log.status;
+                        } else {
+                            // If log is Absent, only apply it if it's a regular class day
+                            if (!isHoliday && !(!isWeekend && !hasClass) && !(isWeekend && !hasClass)) {
+                                status = 'Absent';
+                            }
+                        }
+                    }
 
                     return {
                         ...student,
@@ -163,7 +173,16 @@ const TeacherDashboard = () => {
                     else if (isWeekend && !hasClass) status = 'Weekend';
                     else if (!isWeekend && !hasClass) status = 'Closed';
                     
-                    if (log && log.status) status = log.status;
+                    if (log && log.status) {
+                        if (log.status !== 'Absent') {
+                            status = log.status;
+                        } else {
+                            // If log is Absent, only apply it if it's a regular class day
+                            if (!isHoliday && !(!isWeekend && !hasClass) && !(isWeekend && !hasClass)) {
+                                status = 'Absent';
+                            }
+                        }
+                    }
 
                     return {
                         ...student,

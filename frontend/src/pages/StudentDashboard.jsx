@@ -219,7 +219,7 @@ const StudentDashboard = () => {
                             date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
                             inTime: existingLog.timeIn || '--:--',
                             outTime: existingLog.timeOut || '--:--',
-                            status: holidayEvent ? 'Holiday' : (isWeekend ? 'Weekend' : existingLog.status),
+                            status: holidayEvent ? 'Holiday' : (isWeekend ? 'Closed' : existingLog.status),
                             sessions: existingLog.sessions ? (typeof existingLog.sessions === 'string' ? JSON.parse(existingLog.sessions) : existingLog.sessions) : []
                         });
                     } else if (holidayEvent) {

@@ -267,7 +267,16 @@ const AdminDashboard = () => {
                     else if (isWeekend && !hasClass) status = 'Weekend';
                     else if (!isWeekend && !hasClass) status = 'Closed';
                     
-                    if (log && log.status) status = log.status;
+                    if (log && log.status) {
+                        if (log.status !== 'Absent') {
+                            status = log.status;
+                        } else {
+                            // If log is Absent, only apply it if it's a regular class day
+                            if (!isHoliday && !(!isWeekend && !hasClass) && !(isWeekend && !hasClass)) {
+                                status = 'Absent';
+                            }
+                        }
+                    }
 
                     return {
                         ...student,
