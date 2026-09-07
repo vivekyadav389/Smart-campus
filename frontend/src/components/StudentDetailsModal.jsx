@@ -185,14 +185,14 @@ const StudentDetailsModal = ({ student, onClose }) => {
                                         <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#475569', marginBottom: '0.5rem' }}>Batch Start Year</label>
                                         <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--color-border)', borderRadius: '0.375rem', padding: '0.5rem 0.75rem', backgroundColor: '#fcfcfc' }}>
                                             <Calendar size={16} color="#94a3b8" style={{ marginRight: '0.5rem' }} />
-                                            <input type="text" readOnly value={(student.batch || '').split('-')[0]} style={{ border: 'none', outline: 'none', backgroundColor: 'transparent', width: '100%', color: '#334155', fontWeight: 500 }} />
+                                            <input type="text" readOnly value={String(student.batch || '').split('-')[0]} style={{ border: 'none', outline: 'none', backgroundColor: 'transparent', width: '100%', color: '#334155', fontWeight: 500 }} />
                                         </div>
                                     </div>
                                     <div>
                                         <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#475569', marginBottom: '0.5rem' }}>Batch End Year</label>
                                         <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--color-border)', borderRadius: '0.375rem', padding: '0.5rem 0.75rem', backgroundColor: '#fcfcfc' }}>
                                             <Calendar size={16} color="#94a3b8" style={{ marginRight: '0.5rem' }} />
-                                            <input type="text" readOnly value={(student.batch || '').split('-')[1] || (parseInt((student.batch || '').split('-')[0]) + 4).toString() || ''} style={{ border: 'none', outline: 'none', backgroundColor: 'transparent', width: '100%', color: '#334155', fontWeight: 500 }} />
+                                            <input type="text" readOnly value={String(student.batch || '').split('-')[1] || (parseInt(String(student.batch || '').split('-')[0]) + 4).toString() || ''} style={{ border: 'none', outline: 'none', backgroundColor: 'transparent', width: '100%', color: '#334155', fontWeight: 500 }} />
                                         </div>
                                     </div>
                                 </div>
@@ -222,7 +222,7 @@ const StudentDetailsModal = ({ student, onClose }) => {
                                                 >
                                                     <option value="Current">Current Semester</option>
                                                     {detailedStudentSemesters.map(s => (
-                                                        <option key={s.id} value={s.id}>{s.name || `Semester ${(s.start_date||s.startdate)?.substring(0,4)}`}</option>
+                                                        <option key={s.id} value={s.id}>{s.name || `Semester ${String(s.start_date||s.startdate || '').substring(0,4)}`}</option>
                                                     ))}
                                                 </select>
                                             </div>
