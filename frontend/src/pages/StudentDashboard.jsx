@@ -455,11 +455,22 @@ const StudentDashboard = () => {
             }
 
             const isWeekend = now.getDay() === 0 || now.getDay() === 6;
+            
+            const hasClass = calendarEvents.some(e => {
+                if (e.type !== 'Class' && e.type !== 'Extra Class') return false;
+                return toISODate(e.date) === localTodayStrISO;
+            });
 
-            if (isWeekend) {
+            if (isWeekend && !hasClass) {
                 setLiveStatus('Weekend');
                 setIsCheckingLocation(false);
                 return; // Stop execution: no attendance marked on weekends
+            }
+
+            if (!isWeekend && !hasClass) {
+                setLiveStatus('Closed');
+                setIsCheckingLocation(false);
+                return;
             }
 
             const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;

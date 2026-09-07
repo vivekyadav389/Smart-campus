@@ -128,16 +128,31 @@ const TeacherDashboard = () => {
             if (!baseStudents || baseStudents.length === 0) return;
             setIsHistoryLoading(true);
             try {
-                const logs = await getAttendanceByDate(historyDate);
+                const [logs, events] = await Promise.all([
+                    getAttendanceByDate(historyDate),
+                    getCalendarEvents('Verified')
+                ]);
                 const isWeekend = isDateWeekend(historyDate);
 
                 const mapped = baseStudents.map(student => {
                     const log = logs.find(l => l.studentId === student.id);
+                    
+                    const eventForDay = events.find(e => e.date.startsWith(historyDate) && (e.branch === 'All' || e.branch === student.branch) && (e.batch === 'All' || e.batch === student.batch));
+                    const isHoliday = eventForDay && eventForDay.type === 'Holiday';
+                    const hasClass = eventForDay && (eventForDay.type === 'Class' || eventForDay.type === 'Extra Class');
+                    
+                    let status = 'Absent';
+                    if (isHoliday) status = 'Holiday';
+                    else if (isWeekend && !hasClass) status = 'Weekend';
+                    else if (!isWeekend && !hasClass) status = 'Closed';
+                    
+                    if (log && log.status) status = log.status;
+
                     return {
                         ...student,
-                        status: isWeekend ? 'Weekend' : (log ? log.status : 'Absent'),
-                        timeIn: isWeekend ? '-' : (log && log.timeIn ? log.timeIn : '-'),
-                        timeOut: isWeekend ? '-' : (log && log.timeOut ? log.timeOut : '-')
+                        status: status,
+                        timeIn: log?.timeIn ? log.timeIn : '-',
+                        timeOut: log?.timeOut ? log.timeOut : '-'
                     };
                 });
                 setHistoryStudents(mapped);
@@ -1597,7 +1612,14 @@ const TeacherDashboard = () => {
                     </div>
                 </div>
             )}
-        </div>
+        
+            {/* Detailed Student Modal */}
+            <StudentDetailsModal 
+                student={selectedDetailedStudent} 
+                onClose={() => setSelectedDetailedStudent(null)} 
+            />
+
+</div>
 
     );
 };
