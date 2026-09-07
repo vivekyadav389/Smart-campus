@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, Users, MapPin, Building, Activity, Download, Settings, ChevronRight, Save, X, Calendar as CalendarIcon, Calendar, CheckCircle, XCircle, Trash2, PlusCircle } from 'lucide-react';
-import { getStats, getDepartmentStats, getCollegeTiming, updateCollegeTiming, getGeofence, updateGeofence, getDeviceRequests, approveDeviceRequest, rejectDeviceRequest, getCalendarEvents, verifyCalendarEvent, deleteCalendarEvent, verifyAllCalendarEvents, rejectAllCalendarEvents, getTodayAttendance, getUsers } from '../utils/mockDb';
+import { User, Users, Phone, Mail, Hash, BookOpen, MapPin, Building, Activity, Download, Settings, ChevronRight, Save, X, Calendar as CalendarIcon, Calendar, CheckCircle, XCircle, Trash2, PlusCircle } from 'lucide-react';
+import { getStats, getDepartmentStats, getCollegeTiming, updateCollegeTiming, getGeofence, updateGeofence, getDeviceRequests, approveDeviceRequest, rejectDeviceRequest, getCalendarEvents, verifyCalendarEvent, deleteCalendarEvent, verifyAllCalendarEvents, rejectAllCalendarEvents, getSemesters, getSemesterHistory, getAttendanceLogs, getTodayAttendance, getUsers } from '../utils/mockDb';
 
 const AdminDashboard = () => {
     const { user } = useAuth();
@@ -31,7 +31,88 @@ const AdminDashboard = () => {
     const [studentFilterBranch, setStudentFilterBranch] = useState('All');
     const [studentFilterBatch, setStudentFilterBatch] = useState('All');
     const [isLoadingStudents, setIsLoadingStudents] = useState(false);
+
     const [selectedDetailedStudent, setSelectedDetailedStudent] = useState(null);
+    const [detailedStudentSemesters, setDetailedStudentSemesters] = useState([]);
+    const [selectedSemesterId, setSelectedSemesterId] = useState('Current');
+    const [detailedStudentStats, setDetailedStudentStats] = useState({ present: 0, total: 0 });
+
+    const openDetailedStudent = async (student) => {
+        setSelectedDetailedStudent(student);
+        setSelectedSemesterId('Current');
+        try {
+            // Fetch semesters for this branch/batch
+            const [activeSems, historySems, logs, events] = await Promise.all([
+                getSemesters(student.branch, student.batch),
+                getSemesterHistory(student.branch, student.batch),
+                getAttendanceLogs(student.id),
+                getCalendarEvents(student.branch, student.batch)
+            ]);
+            
+            const allSems = [...(activeSems || []), ...(historySems || [])];
+            setDetailedStudentSemesters(allSems);
+            
+            // Store logs and events for dynamic calculation
+            student._logs = logs || [];
+            student._events = events || [];
+            
+            calculateDetailedStats(student, 'Current', activeSems && activeSems.length > 0 ? activeSems[0] : null);
+        } catch(e) { console.error(e); }
+    };
+
+    const calculateDetailedStats = (student, semId, defaultSem = null) => {
+        let targetSem = defaultSem;
+        if (semId !== 'Current') {
+            targetSem = detailedStudentSemesters.find(s => s.id === parseInt(semId));
+        } else if (!targetSem && detailedStudentSemesters.length > 0) {
+            targetSem = detailedStudentSemesters.find(s => s.state === 'Active');
+        }
+
+        if (!targetSem) {
+            setDetailedStudentStats({ present: parseInt(student.classesAttended) || 0, total: parseInt(student.totalClasses) || 0 });
+            return;
+        }
+
+        const st = new Date(targetSem.start_date || targetSem.startdate);
+        const en = new Date(targetSem.end_date || targetSem.enddate || new Date());
+        const today = new Date();
+        const calcEnd = en > today ? today : en;
+
+        let totalClassDays = 0;
+        let presentCount = 0;
+
+        let current = new Date(st);
+        while (current <= calcEnd) {
+            const dayOfWeek = current.getDay();
+            const dateStr = current.toISOString().split('T')[0];
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            
+            const eventForDay = (student._events || []).find(e => e.date.startsWith(dateStr) && e.status === 'Verified');
+            const isHoliday = eventForDay && eventForDay.type === 'Holiday';
+            const isExtraClass = eventForDay && eventForDay.type === 'Extra Class';
+            
+            let isClassDay = false;
+            if (!isWeekend && !isHoliday) isClassDay = true;
+            if (isExtraClass) isClassDay = true;
+            
+            if (isClassDay) {
+                totalClassDays++;
+                const log = (student._logs || []).find(l => l.date.startsWith(dateStr) && l.status === 'Present');
+                if (log) presentCount++;
+            }
+            
+            current.setDate(current.getDate() + 1);
+        }
+
+        setDetailedStudentStats({ present: presentCount, total: totalClassDays });
+    };
+
+    const handleSemesterChange = (e) => {
+        const val = e.target.value;
+        setSelectedSemesterId(val);
+        calculateDetailedStats(selectedDetailedStudent, val);
+    };
+
 
     // Activity Log States
     const [detailedLogs, setDetailedLogs] = useState([]);
@@ -1055,7 +1136,7 @@ const AdminDashboard = () => {
                                     (typeof student.id === 'string' && student.id.toLowerCase().includes(studentSearchQuery.toLowerCase())))
                                 ).map((student, idx) => (
                                     <div key={idx} 
-                                        onClick={() => setSelectedDetailedStudent(student)}
+                                        onClick={() => openDetailedStudent(student)}
                                         style={{
                                         display: 'flex',
                                         justifyContent: 'space-between',
@@ -1139,7 +1220,7 @@ const AdminDashboard = () => {
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                                     <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: 'var(--color-bg-subtle)', border: '4px solid white', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         {selectedDetailedStudent.profilePic ? (
-                                            <img src={`${import.meta.env.VITE_API_URL || ''}${selectedDetailedStudent.profilePic}`} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            <img src={selectedDetailedStudent.profilePic} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                         ) : (
                                             <User size={40} color="var(--color-text-secondary)" />
                                         )}
@@ -1182,21 +1263,21 @@ const AdminDashboard = () => {
                                     <div>
                                         <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#475569', marginBottom: '0.5rem' }}>Roll No.</label>
                                         <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--color-border)', borderRadius: '0.375rem', padding: '0.5rem 0.75rem', backgroundColor: '#fcfcfc' }}>
-                                            <MapPin size={16} color="#94a3b8" style={{ marginRight: '0.5rem' }} />
+                                            <Hash size={16} color="#94a3b8" style={{ marginRight: '0.5rem' }} />
                                             <input type="text" readOnly value={selectedDetailedStudent.rollNo || ''} style={{ border: 'none', outline: 'none', backgroundColor: 'transparent', width: '100%', color: '#334155', fontWeight: 500 }} />
                                         </div>
                                     </div>
                                     <div>
                                         <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#475569', marginBottom: '0.5rem' }}>Mobile Number</label>
                                         <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--color-border)', borderRadius: '0.375rem', padding: '0.5rem 0.75rem', backgroundColor: '#fcfcfc' }}>
-                                            <MapPin size={16} color="#94a3b8" style={{ marginRight: '0.5rem' }} />
+                                            <Phone size={16} color="#94a3b8" style={{ marginRight: '0.5rem' }} />
                                             <input type="text" readOnly value={selectedDetailedStudent.phone || selectedDetailedStudent.mobile || ''} style={{ border: 'none', outline: 'none', backgroundColor: 'transparent', width: '100%', color: '#334155', fontWeight: 500 }} />
                                         </div>
                                     </div>
                                     <div>
                                         <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#475569', marginBottom: '0.5rem' }}>Email Address</label>
                                         <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--color-border)', borderRadius: '0.375rem', padding: '0.5rem 0.75rem', backgroundColor: '#fcfcfc' }}>
-                                            <MapPin size={16} color="#94a3b8" style={{ marginRight: '0.5rem' }} />
+                                            <Mail size={16} color="#94a3b8" style={{ marginRight: '0.5rem' }} />
                                             <input type="text" readOnly value={selectedDetailedStudent.email || ''} style={{ border: 'none', outline: 'none', backgroundColor: 'transparent', width: '100%', color: '#334155', fontWeight: 500 }} />
                                         </div>
                                     </div>
@@ -1206,13 +1287,13 @@ const AdminDashboard = () => {
                             {/* Academic Information */}
                             <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
                                 <div style={{ padding: '1rem 1.25rem', backgroundColor: '#f8fafc', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1e3a8a', fontWeight: 600 }}>
-                                    <MapPin size={18} /> Academic Information
+                                    <BookOpen size={18} /> Academic Information
                                 </div>
                                 <div style={{ padding: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
                                     <div>
                                         <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#475569', marginBottom: '0.5rem' }}>Branch</label>
                                         <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--color-border)', borderRadius: '0.375rem', padding: '0.5rem 0.75rem', backgroundColor: '#fcfcfc' }}>
-                                            <MapPin size={16} color="#94a3b8" style={{ marginRight: '0.5rem' }} />
+                                            <Building size={16} color="#94a3b8" style={{ marginRight: '0.5rem' }} />
                                             <input type="text" readOnly value={selectedDetailedStudent.branch || ''} style={{ border: 'none', outline: 'none', backgroundColor: 'transparent', width: '100%', color: '#334155', fontWeight: 500 }} />
                                         </div>
                                     </div>
@@ -1220,14 +1301,14 @@ const AdminDashboard = () => {
                                         <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#475569', marginBottom: '0.5rem' }}>Batch Start Year</label>
                                         <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--color-border)', borderRadius: '0.375rem', padding: '0.5rem 0.75rem', backgroundColor: '#fcfcfc' }}>
                                             <Calendar size={16} color="#94a3b8" style={{ marginRight: '0.5rem' }} />
-                                            <input type="text" readOnly value={selectedDetailedStudent.batch || ''} style={{ border: 'none', outline: 'none', backgroundColor: 'transparent', width: '100%', color: '#334155', fontWeight: 500 }} />
+                                            <input type="text" readOnly value={(selectedDetailedStudent.batch || '').split('-')[0]} style={{ border: 'none', outline: 'none', backgroundColor: 'transparent', width: '100%', color: '#334155', fontWeight: 500 }} />
                                         </div>
                                     </div>
                                     <div>
                                         <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#475569', marginBottom: '0.5rem' }}>Batch End Year</label>
                                         <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--color-border)', borderRadius: '0.375rem', padding: '0.5rem 0.75rem', backgroundColor: '#fcfcfc' }}>
                                             <Calendar size={16} color="#94a3b8" style={{ marginRight: '0.5rem' }} />
-                                            <input type="text" readOnly value={selectedDetailedStudent.batch ? (parseInt(selectedDetailedStudent.batch) + 4).toString() : ''} style={{ border: 'none', outline: 'none', backgroundColor: 'transparent', width: '100%', color: '#334155', fontWeight: 500 }} />
+                                            <input type="text" readOnly value={(selectedDetailedStudent.batch || '').split('-')[1] || (parseInt((selectedDetailedStudent.batch || '').split('-')[0]) + 4).toString() || ''} style={{ border: 'none', outline: 'none', backgroundColor: 'transparent', width: '100%', color: '#334155', fontWeight: 500 }} />
                                         </div>
                                     </div>
                                 </div>
@@ -1235,23 +1316,33 @@ const AdminDashboard = () => {
 
                             {/* Attendance Report */}
                             {(() => {
-                                const totalClasses = parseInt(selectedDetailedStudent.totalClasses) || 0;
-                                const presentCount = parseInt(selectedDetailedStudent.classesAttended) || 0;
+                                const totalClasses = detailedStudentStats.total || 0;
+                                const presentCount = detailedStudentStats.present || 0;
                                 const absentCount = totalClasses > 0 ? (totalClasses - presentCount) : 0;
                                 const percentage = totalClasses > 0 ? Math.round((presentCount / totalClasses) * 100) : 0;
                                 const conicValue = `conic-gradient(#059669 ${percentage}%, #e2e8f0 0)`;
 
                                 return (
                                     <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
-                                        <div style={{ padding: '1rem 1.25rem', backgroundColor: '#f8fafc', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <div style={{ padding: '1rem 1.25rem', backgroundColor: '#f8fafc', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1e3a8a', fontWeight: 600 }}>
-                                                <MapPin size={18} /> Attendance Report
+                                                <Activity size={18} /> Attendance Report
                                             </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#1e40af', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', backgroundColor: '#eff6ff' }}>
-                                                <Calendar size={14} /> Current Semester <ChevronRight size={14} style={{ transform: 'rotate(90deg)' }} />
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+                                                <CalendarIcon size={14} color="var(--color-text-secondary)" />
+                                                <select 
+                                                    className="input" 
+                                                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem', minWidth: '150px' }}
+                                                    value={selectedSemesterId}
+                                                    onChange={handleSemesterChange}
+                                                >
+                                                    <option value="Current">Current Semester</option>
+                                                    {detailedStudentSemesters.map(s => (
+                                                        <option key={s.id} value={s.id}>{s.name || `Semester ${(s.start_date||s.startdate)?.substring(0,4)}`}</option>
+                                                    ))}
+                                                </select>
                                             </div>
                                         </div>
-                                        
                                         <div style={{ padding: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'center', justifyContent: 'center' }}>
                                             {/* Donut Chart */}
                                             <div style={{ width: '140px', height: '140px', borderRadius: '50%', background: conicValue, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
