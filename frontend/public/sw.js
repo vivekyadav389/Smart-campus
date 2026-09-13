@@ -19,6 +19,15 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Use Network-First strategy for HTML pages so users get the latest version
+  if (event.request.mode === 'navigate' || event.request.headers.get('accept').includes('text/html')) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Cache-First for everything else
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);
